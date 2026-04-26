@@ -1,4 +1,5 @@
 <?php
+session_start();
 require_once "db.php";
 
 $data = json_decode(file_get_contents("php://input"), true);
@@ -47,6 +48,13 @@ if (!password_verify($password, $user['password'])) {
         "message" => "Invalid email or password."
     ]);
 }
+
+// Store passenger login data in PHP session
+$_SESSION['login'] = true;
+$_SESSION['user_id'] = (int)$user['user_id'];
+$_SESSION['full_name'] = $user['full_name'];
+$_SESSION['email'] = $user['email'];
+$_SESSION['phone_number'] = $user['phone_number'];
 
 json_response([
     "success" => true,
