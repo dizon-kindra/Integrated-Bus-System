@@ -1,0 +1,35 @@
+# Visual Studio / C# files
+.vs/
+bin/
+obj/
+[Bb]in/
+[Oo]bj/
+Debug/
+Release/
+*.user
+*.suo
+*.cache
+*.log
+
+# Build outputs
+*.exe
+*.dll
+*.pdb
+
+# NuGet packages
+packages/
+*.nupkg
+
+# PHP / Composer
+vendor/
+
+# Node dependencies if naa
+node_modules/
+
+# Environment files
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db
