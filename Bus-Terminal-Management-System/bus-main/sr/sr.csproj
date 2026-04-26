@@ -206,6 +206,12 @@
     <Compile Include="admin.Designer.cs">
       <DependentUpon>admin.cs</DependentUpon>
     </Compile>
+    <Compile Include="AdminDashboardForm.cs.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AdminDashboardForm.cs.Designer.cs">
+      <DependentUpon>AdminDashboardForm.cs.cs</DependentUpon>
+    </Compile>
     <Compile Include="book.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -342,6 +348,9 @@
     </Compile>
     <EmbeddedResource Include="admin.resx">
       <DependentUpon>admin.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="AdminDashboardForm.cs.resx">
+      <DependentUpon>AdminDashboardForm.cs.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="book.resx">
       <DependentUpon>book.cs</DependentUpon>

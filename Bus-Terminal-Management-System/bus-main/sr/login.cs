@@ -50,8 +50,9 @@ namespace sr
                         {
                             MessageBox.Show("Login successfully", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                            DashboardForm dashboard = new DashboardForm();
+                            AdminDashboardForm dashboard = new AdminDashboardForm();
                             dashboard.Show();
+
                             this.Hide();
                         }
                         else
