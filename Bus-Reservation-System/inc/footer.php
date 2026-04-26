@@ -147,13 +147,3 @@ function checkLoginToBook(status, bus_id) {
         showAlert('danger', 'Please log in to book a bus!');
     }
 }
-</script>
-
-function checkLoginToBook(status, bus_id) {
-    if (status) {
-        window.location.href = 'confirm_booking.php?id=' + bus_id;
-    } else {
-        showAlert('danger', 'Please log in to book a bus!');
-    }
-}
-</script>

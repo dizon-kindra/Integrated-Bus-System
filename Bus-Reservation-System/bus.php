@@ -16,39 +16,43 @@
     $source_default = '';
     $destination_default = '';
     $date_default = '';
-    $passengers_default = '';
+    $passengers_default = '1';
 
     if (isset($_GET['check_availability'])) {
         $frm_data = filteration($_GET);
+
         $source_default = isset($frm_data['source']) ? $frm_data['source'] : '';
         $destination_default = isset($frm_data['destination']) ? $frm_data['destination'] : '';
         $date_default = isset($frm_data['date']) ? $frm_data['date'] : '';
-        $passengers_default = isset($frm_data['passengers']) ? $frm_data['passengers'] : '';
+        $passengers_default = isset($frm_data['passengers']) ? $frm_data['passengers'] : '1';
+
         $_SESSION['user'] = [
             "passengers" => $passengers_default,
             "date" => $date_default
         ];
     }
-
-    
-
     ?>
 
     <div class="my-5 px-4">
         <h2 class="fw-bold h-font text-center">OUR BUSES</h2>
         <div class="h-line bg-dark"></div>
+        <p class="text-center text-muted mt-3">
+            Search and choose from available trips based on your selected route and date.
+        </p>
     </div>
 
     <div class="container-fluid">
         <div class="row">
 
+            <!-- FILTER SIDEBAR -->
             <div class="col-lg-3 col-md-12 mb-4 mb-lg-0 ps-4">
                 <nav class="navbar navbar-expand-lg navbar-light bg-white rounded shadow">
                     <div class="container-fluid flex-lg-column align-items-stretch">
 
                         <h4 class="mt-2 h-font">FILTERS</h4>
+
                         <button class="navbar-toggler shadow-none" type="button" data-bs-toggle="collapse"
-                            data-bs-target="#filterDropdown" aria-controls="navbarNav" aria-expanded="false"
+                            data-bs-target="#filterDropdown" aria-controls="filterDropdown" aria-expanded="false"
                             aria-label="Toggle navigation">
                             <span class="navbar-toggler-icon"></span>
                         </button>
@@ -60,36 +64,32 @@
                                 <h5 class="mb-3 h-font d-flex justify-content-between align-items-center"
                                     style="font-size: 18px;">
                                     <span>CHECK AVAILABILITY</span>
-                                    <button id="chk_avail_btn" onclick="chk_chk_avail_clear()"
-                                        class="btn shadow-none btn-sm text-secondary d-none">Reset</button>
+                                    <button id="chk_avail_btn" onclick="chk_avail_clear()"
+                                        class="btn shadow-none btn-sm text-secondary d-none" type="button">Reset</button>
                                 </h5>
-                                <label for="form-label">Source</label>
-                                <input type="text" class="form-control shadow-none mb-3" id="source"
-                                    onchange="chk_avail_filter()" value="<?php echo $source_default ?>">
 
-                                <label for="form-label">Destination</label>
-                                <input type="text" class="form-control shadow-none" id="destination"
-                                    onchange="chk_avail_filter()" value="<?php echo $destination_default ?>">
+                                <label class="form-label fw-bold">Source</label>
+                                <input type="text" class="form-control shadow-none mb-3" id="source"
+                                    onchange="chk_avail_filter()" value="<?php echo htmlspecialchars($source_default); ?>"
+                                    placeholder="Enter origin">
+
+                                <label class="form-label fw-bold">Destination</label>
+                                <input type="text" class="form-control shadow-none mb-3" id="destination"
+                                    onchange="chk_avail_filter()" value="<?php echo htmlspecialchars($destination_default); ?>"
+                                    placeholder="Enter destination">
                             </div>
 
                             <div class="border bg-light p-3 rounded mb-3">
-                                <h5 class="mb-3 h-font d-flex justify-content-between align-items-center"
-                                    style="font-size: 18px;">
-                                    <span>Date</span>
-                                </h5>
-                                <div class="">
-                                    <div class="">
-                                        <label for="form-label">Date</label>
-                                        <input type="date" class="form-control shadow-none mb-3" id="date"
-                                            onchange="chk_avail_filter()" value="<?php echo $date_default ?>">
-                                    </div>
-                                    <div>
-                                        <label for="form-label">No. of passengers</label>
-                                        <input type="number" onchange="chk_avail_filter()" id="passengers"
-                                            class="form-control shadow-none mb-3" max="9"
-                                            value="<?php echo $passengers_default ?>">
-                                    </div>
-                                </div>
+                                <h5 class="mb-3 h-font" style="font-size: 18px;">Date & Passengers</h5>
+
+                                <label class="form-label fw-bold">Date</label>
+                                <input type="date" class="form-control shadow-none mb-3" id="date"
+                                    onchange="chk_avail_filter()" value="<?php echo htmlspecialchars($date_default); ?>">
+
+                                <label class="form-label fw-bold">No. of Passengers</label>
+                                <input type="number" onchange="chk_avail_filter()" id="passengers"
+                                    class="form-control shadow-none mb-3" min="1" max="9"
+                                    value="<?php echo htmlspecialchars($passengers_default); ?>">
                             </div>
 
                         </div>
@@ -97,8 +97,9 @@
                 </nav>
             </div>
 
+            <!-- BUS/TRIP RESULTS -->
             <div class="col-lg-9 col-md-12 px-4" id="bus-data">
-
+                <!-- API results will load here -->
             </div>
 
         </div>
@@ -112,36 +113,178 @@
         let date = document.getElementById('date');
         let passengers = document.getElementById('passengers');
 
+        let isLoggedIn = <?php echo (isset($_SESSION['login']) && $_SESSION['login'] == true) ? 'true' : 'false'; ?>;
+
+        function formatTime(timeValue) {
+            if (!timeValue) return 'N/A';
+
+            let parts = timeValue.split(':');
+            let hour = parseInt(parts[0]);
+            let minute = parts[1];
+
+            let ampm = hour >= 12 ? 'PM' : 'AM';
+            hour = hour % 12;
+            hour = hour ? hour : 12;
+
+            return hour + ':' + minute + ' ' + ampm;
+        }
+
         function fetch_bus() {
-            let chk_avail = JSON.stringify({
-                source: source.value,
-                destination: destination.value,
-                date: date.value,
-                passengers: passengers.value
-            });
+            if (source.value === '' || destination.value === '' || date.value === '') {
+                bus_data.innerHTML = `
+                    <div class="bg-white rounded shadow p-4 text-center">
+                        <h4 class="text-danger mb-2">Please fill the trip information.</h4>
+                        <p class="text-muted mb-0">Enter source, destination, and travel date.</p>
+                    </div>
+                `;
+                return;
+            }
 
-            let xhr = new XMLHttpRequest();
-            xhr.open("GET", "ajax/bus.php?fetch_bus&chk_avail=" + chk_avail, true);
+            bus_data.innerHTML = `
+                <div class="spinner-border d-block text-info mb-3 mx-auto" id="loader">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            `;
 
-            xhr.onprogress = function () {
-                bus_data.innerHTML = `<div class="spinner-border d-block text-info mb-3 mx-auto" id="loader"><span class="visually-hidden">Loading...</span></div>`;
-            };
+            let apiUrl = `api/search_trips.php?source=${encodeURIComponent(source.value)}&destination=${encodeURIComponent(destination.value)}&date=${encodeURIComponent(date.value)}`;
 
-            xhr.onload = function () {
-                bus_data.innerHTML = this.responseText;
-            };
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Trip Search API Response:", data);
 
-            xhr.onerror = function () {
-                console.error("Request failed.");
-            };
+                    if (!data.success) {
+                        bus_data.innerHTML = `
+                            <div class="bg-white rounded shadow p-4 text-center">
+                                <h4 class="text-danger mb-2">${data.message}</h4>
+                                <p class="text-muted mb-0">Please check your search details.</p>
+                            </div>
+                        `;
+                        return;
+                    }
 
-            xhr.send();
+                    if (data.count === 0) {
+                        bus_data.innerHTML = `
+                            <div class="bg-white rounded shadow p-4 text-center">
+                                <h4 class="text-danger mb-2">No trips found.</h4>
+                                <p class="text-muted mb-0">Try another route or departure date.</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    let html = '';
+
+                    data.trips.forEach(trip => {
+                        let bookButton = '';
+
+                        if (isLoggedIn) {
+                            bookButton = `
+                                <a href="confirm_booking.php?schedule_id=${trip.schedule_id}&passengers=${passengers.value}" 
+                                   class="btn btn-sm text-white custom-bg shadow-none">
+                                    Book Now
+                                </a>
+                            `;
+                        } else {
+                            bookButton = `
+                                <button type="button" class="btn btn-sm text-white custom-bg shadow-none" 
+                                    data-bs-toggle="modal" data-bs-target="#loginModal">
+                                    Login to Book
+                                </button>
+                            `;
+                        }
+
+                        html += `
+                            <div class="card mb-4 border-0 shadow">
+                                <div class="row g-0 p-3 align-items-center">
+
+                                    <div class="col-md-4 mb-lg-0 mb-md-0 mb-3">
+                                        <h5 class="mb-2 fw-bold">${trip.bus_number}</h5>
+                                        <p class="mb-1">
+                                            <span class="badge bg-dark">${trip.bus_type}</span>
+                                        </p>
+                                        <p class="mb-1 text-muted">
+                                            <i class="bi bi-credit-card-2-front me-1"></i>
+                                            Plate No: ${trip.plate_number}
+                                        </p>
+                                        <p class="mb-0 text-muted">
+                                            <i class="bi bi-people-fill me-1"></i>
+                                            Capacity: ${trip.capacity}
+                                        </p>
+                                    </div>
+
+                                    <div class="col-md-5 px-lg-3 px-md-3 px-0 mb-lg-0 mb-md-0 mb-3">
+                                        <h6 class="mb-2 fw-bold">Trip Details</h6>
+
+                                        <p class="mb-1">
+                                            <i class="bi bi-geo-alt-fill me-1"></i>
+                                            ${trip.origin} → ${trip.destination}
+                                        </p>
+
+                                        <p class="mb-1">
+                                            <i class="bi bi-calendar-event me-1"></i>
+                                            ${trip.departure_date}
+                                        </p>
+
+                                        <p class="mb-1">
+                                            <i class="bi bi-clock me-1"></i>
+                                            Departure: ${formatTime(trip.departure_time)}
+                                        </p>
+
+                                        <p class="mb-1">
+                                            <i class="bi bi-clock-history me-1"></i>
+                                            Arrival: ${formatTime(trip.arrival_time)}
+                                        </p>
+
+                                        <p class="mb-0">
+                                            <i class="bi bi-hourglass-split me-1"></i>
+                                            Duration: ${trip.estimated_duration}
+                                        </p>
+                                    </div>
+
+                                    <div class="col-md-3 text-center">
+                                        <h5 class="mb-2 text-success fw-bold">₱${trip.fare}</h5>
+
+                                        <p class="mb-2">
+                                            <span class="badge bg-primary">
+                                                ${trip.available_seats} seats available
+                                            </span>
+                                        </p>
+
+                                        <p class="mb-3">
+                                            <span class="badge bg-success">${trip.trip_status}</span>
+                                        </p>
+
+                                        ${bookButton}
+                                    </div>
+
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    bus_data.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error("Trip Search Error:", error);
+
+                    bus_data.innerHTML = `
+                        <div class="bg-white rounded shadow p-4 text-center">
+                            <h4 class="text-danger mb-2">Something went wrong.</h4>
+                            <p class="text-muted mb-0">Unable to load trips. Please try again.</p>
+                        </div>
+                    `;
+                });
         }
 
         function chk_avail_filter() {
-            // Check if any of the fields (source, destination, date, passengers) are empty
             if (source.value === '' || destination.value === '' || date.value === '' || passengers.value === '') {
-                bus_data.innerHTML = `<h3 class='text-center text-danger'>Please Fill the information!</h3>`;
+                bus_data.innerHTML = `
+                    <div class="bg-white rounded shadow p-4 text-center">
+                        <h4 class="text-danger mb-2">Please fill the information!</h4>
+                        <p class="text-muted mb-0">Source, destination, date, and passengers are required.</p>
+                    </div>
+                `;
                 chk_avail_btn.classList.add('d-none');
             } else {
                 chk_avail_btn.classList.remove('d-none');
@@ -153,17 +296,20 @@
             source.value = '';
             destination.value = '';
             date.value = '';
-            passengers.value = '';
+            passengers.value = '1';
             chk_avail_btn.classList.add('d-none');
-            bus_data.innerHTML = '';  // Clear the bus data area
+
+            bus_data.innerHTML = `
+                <div class="bg-white rounded shadow p-4 text-center">
+                    <h4 class="text-muted mb-2">Search cleared.</h4>
+                    <p class="text-muted mb-0">Enter your travel details to search again.</p>
+                </div>
+            `;
         }
 
         window.onload = function () {
             fetch_bus();
         };
-
-
-
     </script>
 
     <?php require('inc/footer.php'); ?>
