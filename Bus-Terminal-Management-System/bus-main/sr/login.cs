@@ -25,7 +25,7 @@ namespace sr
 
         private void login_Load(object sender, EventArgs e)
         {
-            panel1.BackColor = Color.FromArgb(100, 0, 0, 0);
+            panel1.BackColor = Color.White;
         }
         private void bunifuButton1_Click(object sender, EventArgs e)
         {
@@ -83,11 +83,6 @@ namespace sr
             Environment.Exit(0);
         }
 
-        private void bunifuButton3_Click(object sender, EventArgs e)
-        {
-            home h = new home();
-            h.ShowDialog();
-            this.Hide();
-        }
+       
     }
     }
