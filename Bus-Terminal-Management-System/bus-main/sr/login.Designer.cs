@@ -24,7 +24,7 @@
 
         private System.Windows.Forms.Panel panel1;
         private System.Windows.Forms.Label label2;
-        private System.Windows.Forms.PictureBox pictureBox1;
+        private System.Windows.Forms.Label pictureBox1;
         private System.Windows.Forms.Label label1;
         private Bunifu.UI.WinForms.BunifuButton.BunifuButton bunifuButton1;
         private System.Windows.Forms.TextBox textBox2;
@@ -75,7 +75,7 @@
             this.textBox1 = new System.Windows.Forms.TextBox();
             this.label3 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
-            this.pictureBox1 = new System.Windows.Forms.PictureBox();
+            this.pictureBox1 = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
 
             this.panelMain.SuspendLayout();
@@ -84,7 +84,6 @@
             this.panelLoginCard.SuspendLayout();
             this.panelIconCircle.SuspendLayout();
             this.panel1.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.SuspendLayout();
 
             // 
@@ -254,22 +253,24 @@
             this.panelLoginCard.Controls.Add(this.panel1);
 
             // 
-            // pictureBox1
+            // pictureBox1 - User Icon
             // 
-            this.pictureBox1.BackColor = System.Drawing.Color.FromArgb(32, 45, 64);
-            this.pictureBox1.Location = new System.Drawing.Point(155, 28);
+            this.pictureBox1.BackColor = System.Drawing.Color.FromArgb(52, 152, 219);
+            this.pictureBox1.Font = new System.Drawing.Font("Segoe MDL2 Assets", 30F, System.Drawing.FontStyle.Regular);
+            this.pictureBox1.ForeColor = System.Drawing.Color.White;
+            this.pictureBox1.Location = new System.Drawing.Point(155, 25);
             this.pictureBox1.Name = "pictureBox1";
-            this.pictureBox1.Size = new System.Drawing.Size(80, 55);
-            this.pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.pictureBox1.Size = new System.Drawing.Size(80, 65);
             this.pictureBox1.TabIndex = 1;
-            this.pictureBox1.TabStop = false;
+            this.pictureBox1.Text = "\uE77B";
+            this.pictureBox1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
 
             // 
             // label1
             // 
             this.label1.Font = new System.Drawing.Font("Segoe UI", 18F, System.Drawing.FontStyle.Bold);
             this.label1.ForeColor = System.Drawing.Color.FromArgb(32, 45, 64);
-            this.label1.Location = new System.Drawing.Point(0, 92);
+            this.label1.Location = new System.Drawing.Point(0, 98);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(390, 40);
             this.label1.TabIndex = 0;
@@ -282,7 +283,7 @@
             this.label2.AutoSize = true;
             this.label2.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
             this.label2.ForeColor = System.Drawing.Color.FromArgb(32, 45, 64);
-            this.label2.Location = new System.Drawing.Point(45, 148);
+            this.label2.Location = new System.Drawing.Point(45, 153);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(75, 19);
             this.label2.TabIndex = 2;
@@ -296,7 +297,7 @@
             this.textBox1.BorderStyle = System.Windows.Forms.BorderStyle.None;
             this.textBox1.Font = new System.Drawing.Font("Segoe UI", 12F);
             this.textBox1.ForeColor = System.Drawing.Color.FromArgb(32, 45, 64);
-            this.textBox1.Location = new System.Drawing.Point(45, 173);
+            this.textBox1.Location = new System.Drawing.Point(45, 178);
             this.textBox1.Name = "textBox1";
             this.textBox1.Size = new System.Drawing.Size(300, 22);
             this.textBox1.TabIndex = 1;
@@ -305,7 +306,7 @@
             // panelUsernameLine
             // 
             this.panelUsernameLine.BackColor = System.Drawing.Color.FromArgb(210, 218, 226);
-            this.panelUsernameLine.Location = new System.Drawing.Point(45, 202);
+            this.panelUsernameLine.Location = new System.Drawing.Point(45, 207);
             this.panelUsernameLine.Name = "panelUsernameLine";
             this.panelUsernameLine.Size = new System.Drawing.Size(300, 2);
             this.panelUsernameLine.TabIndex = 10;
@@ -316,7 +317,7 @@
             this.label3.AutoSize = true;
             this.label3.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
             this.label3.ForeColor = System.Drawing.Color.FromArgb(32, 45, 64);
-            this.label3.Location = new System.Drawing.Point(45, 225);
+            this.label3.Location = new System.Drawing.Point(45, 230);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(70, 19);
             this.label3.TabIndex = 3;
@@ -329,7 +330,7 @@
             this.textBox2.BorderStyle = System.Windows.Forms.BorderStyle.None;
             this.textBox2.Font = new System.Drawing.Font("Segoe UI", 12F);
             this.textBox2.ForeColor = System.Drawing.Color.FromArgb(32, 45, 64);
-            this.textBox2.Location = new System.Drawing.Point(45, 250);
+            this.textBox2.Location = new System.Drawing.Point(45, 255);
             this.textBox2.Name = "textBox2";
             this.textBox2.Size = new System.Drawing.Size(300, 22);
             this.textBox2.TabIndex = 2;
@@ -339,7 +340,7 @@
             // panelPasswordLine
             // 
             this.panelPasswordLine.BackColor = System.Drawing.Color.FromArgb(210, 218, 226);
-            this.panelPasswordLine.Location = new System.Drawing.Point(45, 279);
+            this.panelPasswordLine.Location = new System.Drawing.Point(45, 284);
             this.panelPasswordLine.Name = "panelPasswordLine";
             this.panelPasswordLine.Size = new System.Drawing.Size(300, 2);
             this.panelPasswordLine.TabIndex = 11;
@@ -361,7 +362,7 @@
             this.bunifuCheckBox1.CheckState = Bunifu.UI.WinForms.BunifuCheckBox.CheckStates.Unchecked;
             this.bunifuCheckBox1.Cursor = System.Windows.Forms.Cursors.Hand;
             this.bunifuCheckBox1.CustomCheckmarkImage = null;
-            this.bunifuCheckBox1.Location = new System.Drawing.Point(45, 300);
+            this.bunifuCheckBox1.Location = new System.Drawing.Point(45, 305);
             this.bunifuCheckBox1.MinimumSize = new System.Drawing.Size(17, 17);
             this.bunifuCheckBox1.Name = "bunifuCheckBox1";
 
@@ -409,7 +410,7 @@
             this.label5.AutoSize = true;
             this.label5.Font = new System.Drawing.Font("Segoe UI", 9.5F);
             this.label5.ForeColor = System.Drawing.Color.Gray;
-            this.label5.Location = new System.Drawing.Point(72, 301);
+            this.label5.Location = new System.Drawing.Point(72, 306);
             this.label5.Name = "label5";
             this.label5.Size = new System.Drawing.Size(98, 17);
             this.label5.TabIndex = 9;
@@ -420,7 +421,7 @@
             // 
             this.label4.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.label4.ForeColor = System.Drawing.Color.Firebrick;
-            this.label4.Location = new System.Drawing.Point(45, 328);
+            this.label4.Location = new System.Drawing.Point(45, 332);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(300, 20);
             this.label4.TabIndex = 7;
@@ -479,7 +480,7 @@
             this.bunifuButton1.IdleIconRightImage = null;
             this.bunifuButton1.IndicateFocus = false;
 
-            this.bunifuButton1.Location = new System.Drawing.Point(45, 360);
+            this.bunifuButton1.Location = new System.Drawing.Point(45, 362);
             this.bunifuButton1.Name = "bunifuButton1";
 
             this.bunifuButton1.OnDisabledState.BorderColor = System.Drawing.Color.FromArgb(191, 191, 191);
@@ -534,7 +535,6 @@
             this.panelIconCircle.ResumeLayout(false);
             this.panelLeft.ResumeLayout(false);
             this.panelMain.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
             this.ResumeLayout(false);
         }
     }
