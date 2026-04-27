@@ -224,6 +224,11 @@ namespace sr
         {
 
         }
+
+        private void progressbar_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 
     public static class GraphicsExtensions

@@ -1,34 +1,49 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using MySql.Data.MySqlClient;
+
 namespace sr
 {
     public partial class login : Form
     {
+        private string connStr = "server=localhost;user=root;password=;database=sr_db;";
+
         public login()
         {
             InitializeComponent();
-            
         }
 
         private void label2_Click(object sender, EventArgs e)
         {
-
+            // No action needed
         }
 
+        //private void login_Load(object sender, EventArgs e)
+        // {
+        //  panel1.BackColor = Color.White;
+
+        // Make password hidden by default
+        //  textBox2.UseSystemPasswordChar = true;
+        // }
         private void login_Load(object sender, EventArgs e)
         {
             panel1.BackColor = Color.White;
+            textBox2.UseSystemPasswordChar = true;
+
+            
         }
         private void bunifuButton1_Click(object sender, EventArgs e)
         {
+            string username = textBox1.Text.Trim();
+            string password = textBox2.Text.Trim();
+
+            if (username == "" || password == "")
+            {
+                MessageBox.Show("Please enter username and password.", "Login Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             string connStr = "server=localhost;user=root;password=;database=sr_db;";
 
             using (MySqlConnection con = new MySqlConnection(connStr))
@@ -37,16 +52,25 @@ namespace sr
                 {
                     con.Open();
 
-                    string query = "SELECT COUNT(*) FROM login WHERE uname=@uname AND pass=@pass";
+                    string query = "SELECT pass FROM login WHERE uname = @uname LIMIT 1";
 
                     using (MySqlCommand cmd = new MySqlCommand(query, con))
                     {
-                        cmd.Parameters.AddWithValue("@uname", textBox1.Text.Trim());
-                        cmd.Parameters.AddWithValue("@pass", textBox2.Text.Trim());
+                        cmd.Parameters.AddWithValue("@uname", username);
 
-                        int count = Convert.ToInt32(cmd.ExecuteScalar());
+                        object result = cmd.ExecuteScalar();
 
-                        if (count > 0)
+                        if (result == null || result == DBNull.Value)
+                        {
+                            MessageBox.Show("Incorrect username or password", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return;
+                        }
+
+                        string storedHash = result.ToString();
+
+                        bool isPasswordCorrect = BCrypt.Net.BCrypt.Verify(password, storedHash);
+
+                        if (isPasswordCorrect)
                         {
                             MessageBox.Show("Login successfully", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
@@ -69,7 +93,7 @@ namespace sr
         }
         private void bunifuCheckBox1_CheckedChanged(object sender, Bunifu.UI.WinForms.BunifuCheckBox.CheckedChangedEventArgs e)
         {
-            if(bunifuCheckBox1.Checked)
+            if (bunifuCheckBox1.Checked)
             {
                 textBox2.UseSystemPasswordChar = false;
             }
@@ -81,9 +105,17 @@ namespace sr
 
         private void bunifuButton2_Click(object sender, EventArgs e)
         {
-            Environment.Exit(0);
-        }
+            DialogResult result = MessageBox.Show(
+                "Are you sure you want to exit?",
+                "Exit",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question
+            );
 
-       
+            if (result == DialogResult.Yes)
+            {
+                Application.Exit();
+            }
+        }
     }
-    }
+}

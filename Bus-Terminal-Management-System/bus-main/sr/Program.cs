@@ -16,8 +16,9 @@ namespace sr
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new Form1());
             //Application.Run(new AdminDashboardForm());
-            Application.Run(new login());
+           // Application.Run(new login());
             //Application.Run(new RouteManagementForm());
             //Application.Run(new BusManagementForm());
             // Application.Run(new ScheduleManagementForm());

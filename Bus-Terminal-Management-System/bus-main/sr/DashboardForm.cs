@@ -482,5 +482,10 @@ namespace sr
                 loginForm.Show();
             }
         }
+
+        private void DashboardForm_Load(object sender, EventArgs e)
+        {
+
+        }
     }
 }
