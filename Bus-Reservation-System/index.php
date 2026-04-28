@@ -69,6 +69,17 @@
             margin-right: 12px;
         }
 
+        .view-all-btn {
+            background-color: #212529;
+            color: #fff;
+            border: none;
+        }
+
+        .view-all-btn:hover {
+            background-color: #000;
+            color: #fff;
+        }
+
         @media screen and (max-width:575px) {
             .availability-form {
                 margin-top: 25px;
@@ -141,7 +152,9 @@ $today = date('Y-m-d');
     <div class='row'>
         <div class='col-lg-12 bg-white p-4 rounded shadow search-card'>
             <h4 class='mb-2 h-font fw-bold'>Search Available Trips</h4>
-            <p class="text-muted mb-4">Enter your travel details to find available bus schedules.</p>
+            <p class="text-muted mb-4">
+                Enter your travel details to find available bus schedules, or view all available trips.
+            </p>
 
             <form action='bus.php' method="GET">
                 <div class='row align-items-end'>
@@ -156,7 +169,7 @@ $today = date('Y-m-d');
                         <input type='text' class='form-control shadow-none' name="destination" required placeholder="Enter destination">
                     </div>
 
-                    <div class='col-lg-3 mb-3'>
+                    <div class='col-lg-2 mb-3'>
                         <label class='form-label fw-bold'>Departure Date</label>
                         <input type='date' min="<?php echo $today; ?>" class='form-control shadow-none' name="date" required value="<?php echo $today; ?>">
                     </div>
@@ -169,11 +182,25 @@ $today = date('Y-m-d');
                     <input type="hidden" name="check_availability">
 
                     <div class='col-lg-1 mb-lg-3 mt-2 d-grid'>
-                        <button type='submit' class='btn text-white shadow-none custom-bg'>Search</button>
+                        <button type='submit' class='btn text-white shadow-none custom-bg'>
+                            Search
+                        </button>
+                    </div>
+
+                    <div class='col-lg-1 mb-lg-3 mt-2 d-grid'>
+                        <a href="bus.php?view=all" class="btn view-all-btn shadow-none">
+                            View All
+                        </a>
                     </div>
 
                 </div>
             </form>
+
+            <div class="mt-3">
+                <small class="text-muted">
+                    Tip: Click <b>View All</b> to browse all available trips added by the terminal admin.
+                </small>
+            </div>
         </div>
     </div>
 </div>
