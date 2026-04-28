@@ -114,7 +114,7 @@
                                 </button>
 
                                 <button type="button" class="btn btn-dark shadow-none w-100" onclick="view_all_trips()">
-                                    View All 
+                                    View All
                                 </button>
                             </div>
 
@@ -132,6 +132,8 @@
     </div>
 
     <script>
+        const API_BASE_URL = "http://localhost:3000/api";
+
         let bus_data = document.getElementById('bus-data');
         let source = document.getElementById('source');
         let destination = document.getElementById('destination');
@@ -308,7 +310,7 @@
                 </div>
             `;
 
-            let apiUrl = `api/search_trips.php?source=${encodeURIComponent(source.value)}&destination=${encodeURIComponent(destination.value)}&date=${encodeURIComponent(date.value)}`;
+            let apiUrl = `${API_BASE_URL}/search-trips?source=${encodeURIComponent(source.value)}&destination=${encodeURIComponent(destination.value)}&date=${encodeURIComponent(date.value)}`;
 
             fetch(apiUrl)
                 .then(response => response.json())
@@ -322,7 +324,7 @@
                     bus_data.innerHTML = `
                         <div class="bg-white rounded shadow p-4 text-center">
                             <h4 class="text-danger mb-2">Something went wrong.</h4>
-                            <p class="text-muted mb-0">Unable to load trips. Please try again.</p>
+                            <p class="text-muted mb-0">Unable to load trips. Please make sure the Node API is running.</p>
                         </div>
                     `;
                 });
@@ -337,7 +339,7 @@
                 </div>
             `;
 
-            let apiUrl = `api/search_trips.php?view=all`;
+            let apiUrl = `${API_BASE_URL}/search-trips?view=all`;
 
             fetch(apiUrl)
                 .then(response => response.json())
@@ -351,7 +353,7 @@
                     bus_data.innerHTML = `
                         <div class="bg-white rounded shadow p-4 text-center">
                             <h4 class="text-danger mb-2">Something went wrong.</h4>
-                            <p class="text-muted mb-0">Unable to load all available trips. Please try again.</p>
+                            <p class="text-muted mb-0">Unable to load all available trips. Please make sure the Node API is running.</p>
                         </div>
                     `;
                 });

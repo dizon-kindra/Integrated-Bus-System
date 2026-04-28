@@ -419,6 +419,8 @@ function format_time_display($time)
 </div>
 
 <script>
+const API_BASE_URL = "http://localhost:3000/api";
+
 const scheduleId = <?php echo (int)$schedule_id; ?>;
 const userId = <?php echo (int)$user_data['user_id']; ?>;
 const requiredSeats = <?php echo (int)$passengers; ?>;
@@ -465,7 +467,7 @@ function loadSeats() {
     seatLoader.classList.remove('d-none');
     seatsContainer.innerHTML = '';
 
-    fetch('api/get_seats.php?schedule_id=' + scheduleId)
+    fetch(`${API_BASE_URL}/get-seats?schedule_id=${scheduleId}`)
         .then(function(response) {
             return response.json();
         })
@@ -537,7 +539,7 @@ function loadSeats() {
 
             seatsContainer.innerHTML =
                 '<div class="alert alert-danger w-100 text-center">' +
-                'Unable to load seats. Please try again.' +
+                'Unable to load seats. Please make sure the Node API is running.' +
                 '</div>';
         });
 }
@@ -559,7 +561,7 @@ bookingForm.addEventListener('submit', function(e) {
     const passengerPhone = document.getElementById('passenger_phone').value.trim();
     const passengerEmail = document.getElementById('passenger_email').value.trim();
 
-    fetch('api/create_booking.php', {
+    fetch(`${API_BASE_URL}/create-booking`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -599,7 +601,7 @@ bookingForm.addEventListener('submit', function(e) {
         console.error('Booking Error:', error);
 
         infoLoader.classList.add('d-none');
-        payInfo.innerHTML = 'Booking failed. Please try again.';
+        payInfo.innerHTML = 'Booking failed. Please make sure the Node API is running.';
         payInfo.className = 'mb-3 text-danger';
         payNowBtn.disabled = false;
     });

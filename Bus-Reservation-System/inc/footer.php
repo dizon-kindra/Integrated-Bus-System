@@ -4,28 +4,32 @@
         <div class="col-lg-4 p-4">
             <h3 class="h-font fw-bold fs-3 mb-2">MYBUS</h3>
             <p>
-                At MYBUS, we offer a seamless travel experience with top-notch amenities and exceptional customer service.
-                Whether for business or leisure, we ensure your journey is comfortable and hassle-free.
+                At MYBUS, we provide a convenient and reliable bus reservation experience.
+                Passengers can search available trips, reserve seats, and manage bookings easily.
             </p>
         </div>
 
         <div class="col-lg-4 p-4">
-            <h5 class="mb-3 h-font">Quick Links</h5>
+            <h5 class="mb-3 h-font">Links</h5>
 
             <a href="index.php" class="d-inline-block mb-2 text-dark text-decoration-none">
                 Home
             </a><br>
 
-            <a href="index.php#searchTrip" class="d-inline-block mb-2 text-dark text-decoration-none">
-                Search Trips
+            <a href="bus.php?view=all" class="d-inline-block mb-2 text-dark text-decoration-none">
+                Buses
             </a><br>
 
             <a href="bookings.php" class="d-inline-block mb-2 text-dark text-decoration-none">
                 My Bookings
             </a><br>
 
-            <a href="index.php#contactus" class="d-inline-block mb-2 text-dark text-decoration-none">
+            <a href="index.php#contact" class="d-inline-block mb-2 text-dark text-decoration-none">
                 Contact Us
+            </a><br>
+
+            <a href="index.php#about" class="d-inline-block mb-2 text-dark text-decoration-none">
+                About
             </a><br>
         </div>
 
@@ -56,6 +60,8 @@
     crossorigin="anonymous"></script>
 
 <script>
+const API_BASE_URL = "http://localhost:3000/api";
+
 function showAlert(type, message) {
     const alertType = type === 'success' ? 'success' : 'danger';
 
@@ -83,23 +89,59 @@ document.addEventListener('DOMContentLoaded', function () {
     const loginForm = document.getElementById('login_form');
     const registerForm = document.getElementById('register_form');
 
+    // LOGIN USING NODE API
     if (loginForm) {
         loginForm.addEventListener('submit', function (e) {
             e.preventDefault();
 
-            const formData = new FormData(this);
+            const formData = new FormData(loginForm);
 
-            fetch('ajax/login.php', {
+            const email = formData.get('email') || '';
+            const password = formData.get('password') || formData.get('pass') || '';
+
+            const loginData = {
+                email: email.trim(),
+                password: password
+            };
+
+            console.log('Login Data Sent:', loginData);
+
+            fetch(`${API_BASE_URL}/login`, {
                 method: 'POST',
-                body: formData
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(loginData)
             })
             .then(function (response) {
-                return response.text();
+                return response.json();
             })
             .then(function (data) {
-                console.log('Login Response:', data);
+                console.log('Node Login Response:', data);
 
-                if (data.trim() === 'success') {
+                if (!data.success) {
+                    showAlert('danger', data.message || 'Login failed.');
+                    return;
+                }
+
+                return fetch('ajax/set_node_session.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data.user)
+                })
+                .then(function (response) {
+                    return response.json();
+                })
+                .then(function (sessionData) {
+                    console.log('Session Save Response:', sessionData);
+
+                    if (!sessionData.success) {
+                        showAlert('danger', sessionData.message || 'Unable to save login session.');
+                        return;
+                    }
+
                     const modalElement = document.getElementById('loginModal');
 
                     if (modalElement) {
@@ -111,63 +153,76 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     loginForm.reset();
 
-                    setTimeout(function () {
+                   setTimeout(function () {
                         window.location.href = 'index.php';
-                    }, 1800);
-                } else {
-                    showAlert('danger', data);
-                }
+                   }, 1000);
+                });
             })
             .catch(function (error) {
                 console.error('Login Error:', error);
-                showAlert('danger', 'Login failed. Please try again.');
+                showAlert('danger', 'Login failed. Please make sure the Node API is running.');
             });
         });
     }
 
+    // REGISTER USING NODE API
     if (registerForm) {
         registerForm.addEventListener('submit', function (e) {
             e.preventDefault();
 
-            const formData = new FormData(this);
+            const formData = new FormData(registerForm);
 
-            fetch('ajax/register.php', {
+            const registerData = {
+                full_name: (formData.get('full_name') || formData.get('name') || '').trim(),
+                email: (formData.get('email') || '').trim(),
+                phone_number: (formData.get('phone_number') || formData.get('phonenum') || '').trim(),
+                password: formData.get('password') || formData.get('pass') || '',
+                confirm_password: formData.get('confirm_password') || formData.get('cpass') || ''
+            };
+
+            console.log('Register Data Sent:', registerData);
+
+            fetch(`${API_BASE_URL}/register`, {
                 method: 'POST',
-                body: formData
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(registerData)
             })
             .then(function (response) {
-                return response.text();
+                return response.json();
             })
             .then(function (data) {
-                console.log('Register Response:', data);
+                console.log('Node Register Response:', data);
 
-                if (data.trim() === 'success') {
-                    const modalElement = document.getElementById('registerModal');
-
-                    if (modalElement) {
-                        const modalInstance = bootstrap.Modal.getOrCreateInstance(modalElement);
-                        modalInstance.hide();
-                    }
-
-                    showAlert('success', 'Registration successful! You can now login.');
-
-                    registerForm.reset();
-
-                    setTimeout(function () {
-                        const loginModalElement = document.getElementById('loginModal');
-
-                        if (loginModalElement) {
-                            const loginModal = new bootstrap.Modal(loginModalElement);
-                            loginModal.show();
-                        }
-                    }, 700);
-                } else {
-                    showAlert('danger', data);
+                if (!data.success) {
+                    showAlert('danger', data.message || 'Registration failed.');
+                    return;
                 }
+
+                const modalElement = document.getElementById('registerModal');
+
+                if (modalElement) {
+                    const modalInstance = bootstrap.Modal.getOrCreateInstance(modalElement);
+                    modalInstance.hide();
+                }
+
+                showAlert('success', 'Registration successful! You can now login.');
+
+                registerForm.reset();
+
+                setTimeout(function () {
+                    const loginModalElement = document.getElementById('loginModal');
+
+                    if (loginModalElement) {
+                        const loginModal = bootstrap.Modal.getOrCreateInstance(loginModalElement);
+                        loginModal.show();
+                    }
+                }, 800);
             })
             .catch(function (error) {
                 console.error('Registration Error:', error);
-                showAlert('danger', 'Registration failed. Please try again.');
+                showAlert('danger', 'Registration failed. Please make sure the Node API is running.');
             });
         });
     }

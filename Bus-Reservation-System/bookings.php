@@ -134,6 +134,7 @@ $user_id = $_SESSION['user_id'] ?? $_SESSION['id'] ?? 0;
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const API_BASE_URL = 'http://localhost:3000/api';
     const userId = <?php echo (int)$user_id; ?>;
 
     const bookingsLoader = document.getElementById('bookingsLoader');
@@ -172,7 +173,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return 'N/A';
         }
 
-        const date = new Date(dateTimeValue.replace(' ', 'T'));
+        const date = new Date(String(dateTimeValue).replace(' ', 'T'));
 
         if (isNaN(date.getTime())) {
             return dateTimeValue;
@@ -244,7 +245,7 @@ document.addEventListener('DOMContentLoaded', function () {
         noBookingsBox.classList.add('d-none');
         bookingsTableBody.innerHTML = '';
 
-        fetch('api/my_bookings.php?user_id=' + userId)
+        fetch(`${API_BASE_URL}/my-bookings?user_id=${userId}`)
             .then(function (response) {
                 return response.json();
             })
@@ -308,11 +309,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         '<tr>' +
                             '<td>' + (index + 1) + '</td>' +
                             '<td class="fw-semibold">' + (booking.booking_code || 'N/A') + '</td>' +
-                            '<td>' + booking.bus_number + '</td>' +
-                            '<td>' + booking.origin + ' → ' + booking.destination + '</td>' +
-                            '<td>' + booking.departure_date + '</td>' +
+                            '<td>' + (booking.bus_number || 'N/A') + '</td>' +
+                            '<td>' + (booking.origin || 'N/A') + ' → ' + (booking.destination || 'N/A') + '</td>' +
+                            '<td>' + (booking.departure_date || 'N/A') + '</td>' +
                             '<td>' + departureTime + ' - ' + arrivalTime + '</td>' +
-                            '<td>' + booking.seat_no + '</td>' +
+                            '<td>' + (booking.seat_no || 'N/A') + '</td>' +
                             '<td>₱' + parseFloat(booking.total_amount || booking.fare || 0).toFixed(2) + '</td>' +
                             '<td>' + getPaymentBadge(paymentStatus) + '</td>' +
                             '<td>' + getReservationBadge(reservationStatus) + '</td>' +
@@ -337,7 +338,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 bookingsTableBody.innerHTML =
                     '<tr>' +
                         '<td colspan="14" class="text-center text-danger py-4">' +
-                            'Unable to load bookings. Please try again.' +
+                            'Unable to load bookings. Please make sure the Node API is running.' +
                         '</td>' +
                     '</tr>';
             });
@@ -365,7 +366,7 @@ document.addEventListener('DOMContentLoaded', function () {
             confirmCancelBtn.disabled = true;
             confirmCancelBtn.innerText = 'Cancelling...';
 
-            fetch('api/cancel_booking.php', {
+            fetch(`${API_BASE_URL}/cancel-booking`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

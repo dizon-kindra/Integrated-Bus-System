@@ -208,6 +208,8 @@ $user_data = mysqli_fetch_assoc($user_res);
 document.addEventListener('DOMContentLoaded', function () {
     console.log("Profile page JS loaded");
 
+    const API_BASE_URL = "http://localhost:3000/api";
+
     const profileForm = document.getElementById('profileForm');
     const passwordForm = document.getElementById('passwordForm');
 
@@ -248,8 +250,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const fullName = document.getElementById('full_name').value.trim();
             const phoneNumber = document.getElementById('phone_number').value.trim();
 
-            fetch('api/update_profile.php', {
-                method: 'POST',
+            fetch(`${API_BASE_URL}/update-profile`, {
+                method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
                 },
@@ -260,12 +262,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 })
             })
             .then(function(response) {
-                return response.text();
+                return response.json();
             })
-            .then(function(text) {
-                console.log("Update profile raw response:", text);
-
-                const data = JSON.parse(text);
+            .then(function(data) {
+                console.log("Update profile response:", data);
 
                 if (data.success) {
                     showCenterPopup('success', data.message, function () {
@@ -277,7 +277,7 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .catch(function(error) {
                 console.error("Profile update error:", error);
-                showCenterPopup('error', 'Profile update failed.');
+                showCenterPopup('error', 'Profile update failed. Please make sure the Node API is running.');
             });
         });
     }
@@ -291,8 +291,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const newPassword = document.getElementById('new_password').value;
             const confirmPassword = document.getElementById('confirm_password').value;
 
-            fetch('api/change_password.php', {
-                method: 'POST',
+            fetch(`${API_BASE_URL}/change-password`, {
+                method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
                 },
@@ -304,12 +304,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 })
             })
             .then(function(response) {
-                return response.text();
+                return response.json();
             })
-            .then(function(text) {
-                console.log("Change password raw response:", text);
-
-                const data = JSON.parse(text);
+            .then(function(data) {
+                console.log("Change password response:", data);
 
                 if (data.success) {
                     showCenterPopup('success', data.message, function () {
@@ -321,7 +319,7 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .catch(function(error) {
                 console.error("Password change error:", error);
-                showCenterPopup('error', 'Password change failed.');
+                showCenterPopup('error', 'Password change failed. Please make sure the Node API is running.');
             });
         });
     }
