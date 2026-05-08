@@ -389,7 +389,7 @@ namespace sr
                                 DATE_FORMAT(s.departure_date, '%Y-%m-%d'), ' ',
                                 TIME_FORMAT(s.departure_time, '%h:%i %p'),
                                 ' | Fare: ', s.fare,
-                                ' | Seats: ', s.available_seats
+                                ' | A-Seats: ', s.available_seats
                             ) AS schedule_name
                         FROM schedules s
                         INNER JOIN buses b ON s.bus_id = b.bus_id
