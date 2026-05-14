@@ -1,22 +1,26 @@
 ﻿using System;
 using System.Data;
+using System.Net.Http;
+using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
-using MySql.Data.MySqlClient;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace sr
 {
     public partial class ScheduleManagementForm : Form
     {
-        string connectionString = "server=localhost;user id=root;password=;database=sr_db;";
+        private readonly HttpClient client = new HttpClient();
+        private readonly string apiBaseUrl = "http://localhost:3000/api";
 
         public ScheduleManagementForm()
         {
             InitializeComponent();
         }
 
-        private void ScheduleManagementForm_Load(object sender, EventArgs e)
+        private async void ScheduleManagementForm_Load(object sender, EventArgs e)
         {
-
             dtpDepartureTime.Format = DateTimePickerFormat.Time;
             dtpDepartureTime.ShowUpDown = true;
 
@@ -25,179 +29,241 @@ namespace sr
 
             cmbTripStatus.Items.Clear();
             cmbTripStatus.Items.Add("Scheduled");
-            cmbTripStatus.Items.Add("Boarding");
             cmbTripStatus.Items.Add("Departed");
             cmbTripStatus.Items.Add("Arrived");
+            cmbTripStatus.Items.Add("Completed");
             cmbTripStatus.Items.Add("Cancelled");
             cmbTripStatus.SelectedIndex = 0;
 
-            LoadBuses();
-            LoadRoutes();
-            LoadSchedules();
+            await LoadBuses();
+            await LoadRoutes();
+            await LoadSchedules();
             AutoFillFareAndSeats();
         }
 
-        private void LoadBuses()
+        private async Task LoadBuses()
         {
             try
             {
-                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                HttpResponseMessage response = await client.GetAsync(apiBaseUrl + "/admin/buses");
+                string responseBody = await response.Content.ReadAsStringAsync();
+
+                JObject result = JObject.Parse(responseBody);
+
+                if (!response.IsSuccessStatusCode || result["success"]?.ToObject<bool>() != true)
                 {
-                    conn.Open();
-
-                    string query = "SELECT bus_id, bus_number, capacity FROM buses WHERE status = 'Active'";
-
-                    MySqlDataAdapter adapter = new MySqlDataAdapter(query, conn);
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
-
-                    cmbBus.DataSource = dt;
-                    cmbBus.DisplayMember = "bus_number";
-                    cmbBus.ValueMember = "bus_id";
+                    string message = result["message"]?.ToString() ?? "Failed to load buses.";
+                    MessageBox.Show(message, "API Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
                 }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error loading buses: " + ex.Message);
-            }
-        }
 
-        private void LoadRoutes()
-        {
-            try
-            {
-                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                JArray buses = (JArray)result["buses"];
+
+                DataTable dt = new DataTable();
+                dt.Columns.Add("bus_id", typeof(int));
+                dt.Columns.Add("bus_number", typeof(string));
+                dt.Columns.Add("capacity", typeof(int));
+
+                foreach (JObject bus in buses)
                 {
-                    conn.Open();
+                    string status = bus["status"]?.ToString() ?? "";
 
-                    string query = "SELECT route_id, CONCAT(origin, ' → ', destination) AS route_name, fare FROM routes WHERE status = 'Active'";
-
-                    MySqlDataAdapter adapter = new MySqlDataAdapter(query, conn);
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
-
-                    cmbRoute.DataSource = dt;
-                    cmbRoute.DisplayMember = "route_name";
-                    cmbRoute.ValueMember = "route_id";
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error loading routes: " + ex.Message);
-            }
-        }
-
-        private void LoadSchedules()
-        {
-            try
-            {
-                using (MySqlConnection conn = new MySqlConnection(connectionString))
-                {
-                    conn.Open();
-
-                    string query = @"
-                        SELECT 
-                            s.schedule_id AS 'Schedule ID',
-                            b.bus_number AS 'Bus Number',
-                            CONCAT(r.origin, ' → ', r.destination) AS 'Route',
-                            s.departure_date AS 'Departure Date',
-                            s.departure_time AS 'Departure Time',
-                            s.arrival_time AS 'Arrival Time',
-                            s.fare AS 'Fare',
-                            s.available_seats AS 'Available Seats',
-                            s.trip_status AS 'Trip Status',
-                            s.bus_id,
-                            s.route_id
-                        FROM schedules s
-                        INNER JOIN buses b ON s.bus_id = b.bus_id
-                        INNER JOIN routes r ON s.route_id = r.route_id
-                        ORDER BY s.departure_date DESC, s.departure_time DESC";
-
-                    MySqlDataAdapter adapter = new MySqlDataAdapter(query, conn);
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
-
-                    dgvSchedules.DataSource = dt;
-
-                    if (dgvSchedules.Columns.Contains("bus_id"))
-                        dgvSchedules.Columns["bus_id"].Visible = false;
-
-                    if (dgvSchedules.Columns.Contains("route_id"))
-                        dgvSchedules.Columns["route_id"].Visible = false;
-
-                    dgvSchedules.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error loading schedules: " + ex.Message);
-            }
-        }
-
-        private int GetBusCapacity(int busId)
-        {
-            int capacity = 0;
-
-            try
-            {
-                using (MySqlConnection conn = new MySqlConnection(connectionString))
-                {
-                    conn.Open();
-
-                    string query = "SELECT capacity FROM buses WHERE bus_id = @bus_id";
-
-                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    if (status == "Active")
                     {
-                        cmd.Parameters.AddWithValue("@bus_id", busId);
-
-                        object result = cmd.ExecuteScalar();
-
-                        if (result != null && result != DBNull.Value)
-                        {
-                            capacity = Convert.ToInt32(result);
-                        }
+                        dt.Rows.Add(
+                            bus["bus_id"]?.ToObject<int>() ?? 0,
+                            bus["bus_number"]?.ToString() ?? "",
+                            bus["capacity"]?.ToObject<int>() ?? 0
+                        );
                     }
                 }
+
+                cmbBus.DataSource = dt;
+                cmbBus.DisplayMember = "bus_number";
+                cmbBus.ValueMember = "bus_id";
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error getting bus capacity: " + ex.Message);
+                MessageBox.Show(
+                    "Error loading buses from API.\n\nMake sure Node API is running.\n\n" + ex.Message,
+                    "API Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
             }
-
-            return capacity;
         }
 
-        private decimal GetRouteFare(int routeId)
+        private async Task LoadRoutes()
         {
-            decimal fare = 0;
-
             try
             {
-                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                HttpResponseMessage response = await client.GetAsync(apiBaseUrl + "/admin/routes");
+                string responseBody = await response.Content.ReadAsStringAsync();
+
+                JObject result = JObject.Parse(responseBody);
+
+                if (!response.IsSuccessStatusCode || result["success"]?.ToObject<bool>() != true)
                 {
-                    conn.Open();
+                    string message = result["message"]?.ToString() ?? "Failed to load routes.";
+                    MessageBox.Show(message, "API Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
 
-                    string query = "SELECT fare FROM routes WHERE route_id = @route_id";
+                JArray routes = (JArray)result["routes"];
 
-                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                DataTable dt = new DataTable();
+                dt.Columns.Add("route_id", typeof(int));
+                dt.Columns.Add("route_name", typeof(string));
+                dt.Columns.Add("fare", typeof(decimal));
+
+                foreach (JObject route in routes)
+                {
+                    string status = route["status"]?.ToString() ?? "";
+
+                    if (status == "Active")
                     {
-                        cmd.Parameters.AddWithValue("@route_id", routeId);
+                        string origin = route["origin"]?.ToString() ?? "";
+                        string destination = route["destination"]?.ToString() ?? "";
 
-                        object result = cmd.ExecuteScalar();
-
-                        if (result != null && result != DBNull.Value)
-                        {
-                            fare = Convert.ToDecimal(result);
-                        }
+                        dt.Rows.Add(
+                            route["route_id"]?.ToObject<int>() ?? 0,
+                            origin + " → " + destination,
+                            route["fare"]?.ToObject<decimal>() ?? 0
+                        );
                     }
                 }
+
+                cmbRoute.DataSource = dt;
+                cmbRoute.DisplayMember = "route_name";
+                cmbRoute.ValueMember = "route_id";
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error getting route fare: " + ex.Message);
+                MessageBox.Show(
+                    "Error loading routes from API.\n\nMake sure Node API is running.\n\n" + ex.Message,
+                    "API Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
+            }
+        }
+
+        private async Task LoadSchedules()
+        {
+            try
+            {
+                HttpResponseMessage response = await client.GetAsync(apiBaseUrl + "/admin/schedules");
+                string responseBody = await response.Content.ReadAsStringAsync();
+
+                JObject result = JObject.Parse(responseBody);
+
+                if (!response.IsSuccessStatusCode || result["success"]?.ToObject<bool>() != true)
+                {
+                    string message = result["message"]?.ToString() ?? "Failed to load schedules.";
+                    MessageBox.Show(message, "API Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                JArray schedules = (JArray)result["schedules"];
+
+                DataTable dt = new DataTable();
+                dt.Columns.Add("Schedule ID", typeof(int));
+                dt.Columns.Add("Bus Number", typeof(string));
+                dt.Columns.Add("Route", typeof(string));
+                dt.Columns.Add("Departure Date", typeof(string));
+                dt.Columns.Add("Departure Time", typeof(string));
+                dt.Columns.Add("Arrival Time", typeof(string));
+                dt.Columns.Add("Fare", typeof(decimal));
+                dt.Columns.Add("Available Seats", typeof(int));
+                dt.Columns.Add("Trip Status", typeof(string));
+                dt.Columns.Add("bus_id", typeof(int));
+                dt.Columns.Add("route_id", typeof(int));
+
+                foreach (JObject schedule in schedules)
+                {
+                    string origin = schedule["origin"]?.ToString() ?? "";
+                    string destination = schedule["destination"]?.ToString() ?? "";
+
+                    dt.Rows.Add(
+                        schedule["schedule_id"]?.ToObject<int>() ?? 0,
+                        schedule["bus_number"]?.ToString() ?? "",
+                        origin + " → " + destination,
+                        FormatDate(schedule["departure_date"]?.ToString()),
+                        schedule["departure_time"]?.ToString() ?? "",
+                        schedule["arrival_time"]?.ToString() ?? "",
+                        schedule["fare"]?.ToObject<decimal>() ?? 0,
+                        schedule["available_seats"]?.ToObject<int>() ?? 0,
+                        schedule["trip_status"]?.ToString() ?? "",
+                        schedule["bus_id"]?.ToObject<int>() ?? 0,
+                        schedule["route_id"]?.ToObject<int>() ?? 0
+                    );
+                }
+
+                dgvSchedules.DataSource = dt;
+
+                if (dgvSchedules.Columns.Contains("bus_id"))
+                    dgvSchedules.Columns["bus_id"].Visible = false;
+
+                if (dgvSchedules.Columns.Contains("route_id"))
+                    dgvSchedules.Columns["route_id"].Visible = false;
+
+                dgvSchedules.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "Error loading schedules from API.\n\nMake sure Node API is running.\n\n" + ex.Message,
+                    "API Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
+            }
+        }
+
+        private string FormatDate(string value)
+        {
+            DateTime date;
+
+            if (DateTime.TryParse(value, out date))
+            {
+                return date.ToString("yyyy-MM-dd");
             }
 
-            return fare;
+            return value ?? "";
+        }
+
+        private int GetSelectedBusCapacity()
+        {
+            try
+            {
+                if (cmbBus.SelectedItem is DataRowView row)
+                {
+                    return Convert.ToInt32(row["capacity"]);
+                }
+            }
+            catch
+            {
+                // Ignore while ComboBox is loading
+            }
+
+            return 0;
+        }
+
+        private decimal GetSelectedRouteFare()
+        {
+            try
+            {
+                if (cmbRoute.SelectedItem is DataRowView row)
+                {
+                    return Convert.ToDecimal(row["fare"]);
+                }
+            }
+            catch
+            {
+                // Ignore while ComboBox is loading
+            }
+
+            return 0;
         }
 
         private void AutoFillFareAndSeats()
@@ -210,11 +276,8 @@ namespace sr
                 if (cmbBus.SelectedValue is DataRowView || cmbRoute.SelectedValue is DataRowView)
                     return;
 
-                int busId = Convert.ToInt32(cmbBus.SelectedValue);
-                int routeId = Convert.ToInt32(cmbRoute.SelectedValue);
-
-                int capacity = GetBusCapacity(busId);
-                decimal fare = GetRouteFare(routeId);
+                int capacity = GetSelectedBusCapacity();
+                decimal fare = GetSelectedRouteFare();
 
                 txtAvailableSeats.Text = capacity.ToString();
                 txtFare.Text = fare.ToString("0.00");
@@ -304,51 +367,58 @@ namespace sr
                 cmbTripStatus.SelectedIndex = 0;
 
             AutoFillFareAndSeats();
+
+            if (dgvSchedules != null)
+            {
+                dgvSchedules.ClearSelection();
+            }
         }
 
-        private void btnAdd_Click(object sender, EventArgs e)
+        private async void btnAdd_Click(object sender, EventArgs e)
         {
             if (!ValidateFields())
                 return;
 
             try
             {
-                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                var scheduleData = new
                 {
-                    conn.Open();
+                    bus_id = Convert.ToInt32(cmbBus.SelectedValue),
+                    route_id = Convert.ToInt32(cmbRoute.SelectedValue),
+                    departure_date = dtpDepartureDate.Value.ToString("yyyy-MM-dd"),
+                    departure_time = dtpDepartureTime.Value.ToString("HH:mm:ss"),
+                    arrival_time = dtpArrivalTime.Value.ToString("HH:mm:ss"),
+                    fare = Convert.ToDecimal(txtFare.Text.Trim()),
+                    trip_status = cmbTripStatus.Text
+                };
 
-                    string query = @"
-                        INSERT INTO schedules 
-                        (bus_id, route_id, departure_date, departure_time, arrival_time, fare, available_seats, trip_status)
-                        VALUES
-                        (@bus_id, @route_id, @departure_date, @departure_time, @arrival_time, @fare, @available_seats, @trip_status)";
+                string json = JsonConvert.SerializeObject(scheduleData);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@bus_id", Convert.ToInt32(cmbBus.SelectedValue));
-                        cmd.Parameters.AddWithValue("@route_id", Convert.ToInt32(cmbRoute.SelectedValue));
-                        cmd.Parameters.AddWithValue("@departure_date", dtpDepartureDate.Value.Date);
-                        cmd.Parameters.AddWithValue("@departure_time", dtpDepartureTime.Value.ToString("HH:mm:ss"));
-                        cmd.Parameters.AddWithValue("@arrival_time", dtpArrivalTime.Value.ToString("HH:mm:ss"));
-                        cmd.Parameters.AddWithValue("@fare", Convert.ToDecimal(txtFare.Text.Trim()));
-                        cmd.Parameters.AddWithValue("@available_seats", Convert.ToInt32(txtAvailableSeats.Text.Trim()));
-                        cmd.Parameters.AddWithValue("@trip_status", cmbTripStatus.Text);
+                HttpResponseMessage response = await client.PostAsync(apiBaseUrl + "/admin/schedules", content);
+                string responseBody = await response.Content.ReadAsStringAsync();
 
-                        cmd.ExecuteNonQuery();
-                    }
+                JObject result = JObject.Parse(responseBody);
+
+                if (response.IsSuccessStatusCode && result["success"]?.ToObject<bool>() == true)
+                {
+                    MessageBox.Show("Schedule added successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    await LoadSchedules();
+                    ClearFields();
                 }
-
-                MessageBox.Show("Schedule added successfully.");
-                LoadSchedules();
-                ClearFields();
+                else
+                {
+                    string message = result["message"]?.ToString() ?? "Error adding schedule.";
+                    MessageBox.Show(message, "API Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error adding schedule: " + ex.Message);
+                MessageBox.Show("Error adding schedule through API:\n" + ex.Message, "API Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        private void btnUpdate_Click(object sender, EventArgs e)
+        private async void btnUpdate_Click(object sender, EventArgs e)
         {
             if (txtScheduleID.Text.Trim() == "")
             {
@@ -361,49 +431,47 @@ namespace sr
 
             try
             {
-                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                int scheduleId = Convert.ToInt32(txtScheduleID.Text.Trim());
+
+                var scheduleData = new
                 {
-                    conn.Open();
+                    bus_id = Convert.ToInt32(cmbBus.SelectedValue),
+                    route_id = Convert.ToInt32(cmbRoute.SelectedValue),
+                    departure_date = dtpDepartureDate.Value.ToString("yyyy-MM-dd"),
+                    departure_time = dtpDepartureTime.Value.ToString("HH:mm:ss"),
+                    arrival_time = dtpArrivalTime.Value.ToString("HH:mm:ss"),
+                    fare = Convert.ToDecimal(txtFare.Text.Trim()),
+                    available_seats = Convert.ToInt32(txtAvailableSeats.Text.Trim()),
+                    trip_status = cmbTripStatus.Text
+                };
 
-                    string query = @"
-                        UPDATE schedules SET
-                            bus_id = @bus_id,
-                            route_id = @route_id,
-                            departure_date = @departure_date,
-                            departure_time = @departure_time,
-                            arrival_time = @arrival_time,
-                            fare = @fare,
-                            available_seats = @available_seats,
-                            trip_status = @trip_status
-                        WHERE schedule_id = @schedule_id";
+                string json = JsonConvert.SerializeObject(scheduleData);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@schedule_id", txtScheduleID.Text.Trim());
-                        cmd.Parameters.AddWithValue("@bus_id", Convert.ToInt32(cmbBus.SelectedValue));
-                        cmd.Parameters.AddWithValue("@route_id", Convert.ToInt32(cmbRoute.SelectedValue));
-                        cmd.Parameters.AddWithValue("@departure_date", dtpDepartureDate.Value.Date);
-                        cmd.Parameters.AddWithValue("@departure_time", dtpDepartureTime.Value.ToString("HH:mm:ss"));
-                        cmd.Parameters.AddWithValue("@arrival_time", dtpArrivalTime.Value.ToString("HH:mm:ss"));
-                        cmd.Parameters.AddWithValue("@fare", Convert.ToDecimal(txtFare.Text.Trim()));
-                        cmd.Parameters.AddWithValue("@available_seats", Convert.ToInt32(txtAvailableSeats.Text.Trim()));
-                        cmd.Parameters.AddWithValue("@trip_status", cmbTripStatus.Text);
+                HttpResponseMessage response = await client.PutAsync(apiBaseUrl + "/admin/schedules/" + scheduleId, content);
+                string responseBody = await response.Content.ReadAsStringAsync();
 
-                        cmd.ExecuteNonQuery();
-                    }
+                JObject result = JObject.Parse(responseBody);
+
+                if (response.IsSuccessStatusCode && result["success"]?.ToObject<bool>() == true)
+                {
+                    MessageBox.Show("Schedule updated successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    await LoadSchedules();
+                    ClearFields();
                 }
-
-                MessageBox.Show("Schedule updated successfully.");
-                LoadSchedules();
-                ClearFields();
+                else
+                {
+                    string message = result["message"]?.ToString() ?? "Error updating schedule.";
+                    MessageBox.Show(message, "API Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error updating schedule: " + ex.Message);
+                MessageBox.Show("Error updating schedule through API:\n" + ex.Message, "API Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        private void btnCancelTrip_Click(object sender, EventArgs e)
+        private async void btnCancelTrip_Click(object sender, EventArgs e)
         {
             if (txtScheduleID.Text.Trim() == "")
             {
@@ -411,38 +479,48 @@ namespace sr
                 return;
             }
 
-            DialogResult result = MessageBox.Show(
+            DialogResult resultConfirm = MessageBox.Show(
                 "Are you sure you want to cancel this trip?",
                 "Confirm Cancel Trip",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning
             );
 
-            if (result == DialogResult.No)
+            if (resultConfirm == DialogResult.No)
                 return;
 
             try
             {
-                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                int scheduleId = Convert.ToInt32(txtScheduleID.Text.Trim());
+
+                var statusData = new
                 {
-                    conn.Open();
+                    trip_status = "Cancelled"
+                };
 
-                    string query = "UPDATE schedules SET trip_status = 'Cancelled' WHERE schedule_id = @schedule_id";
+                string json = JsonConvert.SerializeObject(statusData);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@schedule_id", txtScheduleID.Text.Trim());
-                        cmd.ExecuteNonQuery();
-                    }
+                HttpResponseMessage response = await client.PutAsync(apiBaseUrl + "/admin/schedules/" + scheduleId + "/status", content);
+                string responseBody = await response.Content.ReadAsStringAsync();
+
+                JObject result = JObject.Parse(responseBody);
+
+                if (response.IsSuccessStatusCode && result["success"]?.ToObject<bool>() == true)
+                {
+                    MessageBox.Show("Trip cancelled successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    await LoadSchedules();
+                    ClearFields();
                 }
-
-                MessageBox.Show("Trip cancelled successfully.");
-                LoadSchedules();
-                ClearFields();
+                else
+                {
+                    string message = result["message"]?.ToString() ?? "Error cancelling trip.";
+                    MessageBox.Show(message, "API Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error cancelling trip: " + ex.Message);
+                MessageBox.Show("Error cancelling trip through API:\n" + ex.Message, "API Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -472,13 +550,24 @@ namespace sr
                 cmbBus.SelectedValue = Convert.ToInt32(row.Cells["bus_id"].Value);
                 cmbRoute.SelectedValue = Convert.ToInt32(row.Cells["route_id"].Value);
 
-                dtpDepartureDate.Value = Convert.ToDateTime(row.Cells["Departure Date"].Value);
+                DateTime departureDate;
+                if (DateTime.TryParse(row.Cells["Departure Date"].Value.ToString(), out departureDate))
+                {
+                    dtpDepartureDate.Value = departureDate;
+                }
 
-                TimeSpan departureTime = TimeSpan.Parse(row.Cells["Departure Time"].Value.ToString());
-                TimeSpan arrivalTime = TimeSpan.Parse(row.Cells["Arrival Time"].Value.ToString());
+                TimeSpan departureTime;
+                TimeSpan arrivalTime;
 
-                dtpDepartureTime.Value = DateTime.Today.Add(departureTime);
-                dtpArrivalTime.Value = DateTime.Today.Add(arrivalTime);
+                if (TimeSpan.TryParse(row.Cells["Departure Time"].Value.ToString(), out departureTime))
+                {
+                    dtpDepartureTime.Value = DateTime.Today.Add(departureTime);
+                }
+
+                if (TimeSpan.TryParse(row.Cells["Arrival Time"].Value.ToString(), out arrivalTime))
+                {
+                    dtpArrivalTime.Value = DateTime.Today.Add(arrivalTime);
+                }
 
                 txtFare.Text = row.Cells["Fare"].Value.ToString();
                 txtAvailableSeats.Text = row.Cells["Available Seats"].Value.ToString();
