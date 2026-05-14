@@ -84,28 +84,24 @@ if (isset($_GET['view']) && $_GET['view'] == 'all') {
                         </div>
 
                         <div class="border bg-light p-3 rounded mb-3 filter-card">
-                            <h5 class="mb-3 h-font">DATE & PASSENGERS</h5>
+                            <h5 class="mb-3 h-font">DATE</h5>
 
                             <label class="form-label fw-bold">Date</label>
                             <input type="date" id="date" class="form-control shadow-none mb-3">
 
-                            <label class="form-label fw-bold">No. of Passengers</label>
-                            <input type="number" id="passengers" class="form-control shadow-none mb-3"
-                                value="1" min="1" max="9">
-
                             <button type="button" id="searchBtn" onclick="chk_avail_filter()"
                                 class="btn text-white custom-bg shadow-none w-100 mb-2">
-                                Search Trips
+                                <i class="bi bi-search me-1"></i> Search Trips
                             </button>
 
                             <button type="button" onclick="view_all_trips()"
                                 class="btn btn-dark shadow-none w-100 mb-2">
-                                View All
+                                <i class="bi bi-list-ul me-1"></i> View All
                             </button>
 
                             <button type="button" id="chk_avail_btn" onclick="chk_avail_clear()"
                                 class="btn btn-outline-dark shadow-none w-100 d-none">
-                                Clear Search
+                                <i class="bi bi-x-circle me-1"></i> Clear Search
                             </button>
                         </div>
 
@@ -138,10 +134,6 @@ if (isset($_GET['view']) && $_GET['view'] == 'all') {
 <?php require('inc/footer.php'); ?>
 
 <script>
-    /*
-        Use a unique variable name here to avoid conflict with other included scripts
-        that may already declare API_BASE_URL.
-    */
     var BUS_API_BASE_URL = "http://localhost:3000/api";
 
     let bus_data = document.getElementById('bus-data');
@@ -149,25 +141,12 @@ if (isset($_GET['view']) && $_GET['view'] == 'all') {
     let destination = document.getElementById('destination');
     let chk_avail_btn = document.getElementById('chk_avail_btn');
     let date = document.getElementById('date');
-    let passengers = document.getElementById('passengers');
 
     let isLoggedIn = <?php echo (isset($_SESSION['login']) && $_SESSION['login'] == true) ? 'true' : 'false'; ?>;
     let viewAllMode = <?php echo $view_all ? 'true' : 'false'; ?>;
 
     function getPassengerCount() {
-        let count = parseInt(passengers.value);
-
-        if (isNaN(count) || count <= 0) {
-            count = 1;
-        }
-
-        if (count > 9) {
-            count = 9;
-        }
-
-        passengers.value = count;
-
-        return count;
+        return 1;
     }
 
     function formatTime(timeValue) {
@@ -211,7 +190,7 @@ if (isset($_GET['view']) && $_GET['view'] == 'all') {
                     <h4 class="text-danger mb-2">${data.message || 'Unable to load trips.'}</h4>
                     <p class="text-muted mb-3">Please check your search details.</p>
                     <button class="btn btn-dark shadow-none" onclick="view_all_trips()">
-                        View All Available Trips
+                        <i class="bi bi-list-ul me-1"></i> View All Available Trips
                     </button>
                 </div>
             `;
@@ -226,7 +205,7 @@ if (isset($_GET['view']) && $_GET['view'] == 'all') {
                         Try another route or departure date, or browse all available trips.
                     </p>
                     <button class="btn btn-dark shadow-none" onclick="view_all_trips()">
-                        View All Available Trips
+                        <i class="bi bi-list-ul me-1"></i> View All Available Trips
                     </button>
                 </div>
             `;
@@ -357,7 +336,7 @@ if (isset($_GET['view']) && $_GET['view'] == 'all') {
                     <h4 class="text-danger mb-2">Please fill the trip information.</h4>
                     <p class="text-muted mb-3">Enter source, destination, and travel date.</p>
                     <button class="btn btn-dark shadow-none" onclick="view_all_trips()">
-                        View All Available Trips
+                        <i class="bi bi-list-ul me-1"></i> View All Available Trips
                     </button>
                 </div>
             `;
@@ -431,7 +410,6 @@ if (isset($_GET['view']) && $_GET['view'] == 'all') {
         source.value = '';
         destination.value = '';
         date.value = '';
-        passengers.value = '1';
 
         chk_avail_btn.classList.add('d-none');
 
@@ -439,15 +417,13 @@ if (isset($_GET['view']) && $_GET['view'] == 'all') {
     }
 
     function chk_avail_filter() {
-        let passengerCount = getPassengerCount();
-
-        if (source.value.trim() === '' || destination.value.trim() === '' || date.value === '' || passengerCount <= 0) {
+        if (source.value.trim() === '' || destination.value.trim() === '' || date.value === '') {
             bus_data.innerHTML = `
                 <div class="bg-white rounded shadow p-4 text-center">
                     <h4 class="text-danger mb-2">Please fill the information!</h4>
-                    <p class="text-muted mb-3">Source, destination, date, and passengers are required.</p>
+                    <p class="text-muted mb-3">Source, destination, and date are required.</p>
                     <button class="btn btn-dark shadow-none" onclick="view_all_trips()">
-                        View All Available Trips
+                        <i class="bi bi-list-ul me-1"></i> View All Available Trips
                     </button>
                 </div>
             `;
@@ -462,7 +438,6 @@ if (isset($_GET['view']) && $_GET['view'] == 'all') {
         source.value = '';
         destination.value = '';
         date.value = '';
-        passengers.value = '1';
 
         chk_avail_btn.classList.add('d-none');
 
@@ -471,7 +446,7 @@ if (isset($_GET['view']) && $_GET['view'] == 'all') {
                 <h4 class="text-muted mb-2">Search cleared.</h4>
                 <p class="text-muted mb-3">Enter your travel details to search again.</p>
                 <button class="btn btn-dark shadow-none" onclick="view_all_trips()">
-                    View All Available Trips
+                    <i class="bi bi-list-ul me-1"></i> View All Available Trips
                 </button>
             </div>
         `;
