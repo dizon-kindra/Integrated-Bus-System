@@ -1,5 +1,4 @@
 <?php
-require_once(__DIR__ . '/inc/db_config.php');
 require_once(__DIR__ . '/inc/essentials.php');
 
 if (session_status() === PHP_SESSION_NONE) {
@@ -16,20 +15,29 @@ if ($user_id == 0) {
     redirect('logout.php');
 }
 
-$user_res = select(
-    "SELECT user_id, full_name, email, phone_number, created_at 
-     FROM users 
-     WHERE user_id = ? 
-     LIMIT 1",
-    [$user_id],
-    'i'
-);
+$api_url = "http://localhost:3000/api/profile?user_id=" . urlencode($user_id);
 
-if (mysqli_num_rows($user_res) == 0) {
+$api_response = @file_get_contents($api_url);
+
+if ($api_response === false) {
+    die("Unable to load profile. Please make sure the Node API is running.");
+}
+
+$profile_data = json_decode($api_response, true);
+
+if (!$profile_data || !isset($profile_data['success']) || $profile_data['success'] !== true) {
     redirect('logout.php');
 }
 
-$user_data = mysqli_fetch_assoc($user_res);
+$user_data = $profile_data['user'];
+
+$_SESSION['user_id'] = $user_data['user_id'];
+$_SESSION['id'] = $user_data['user_id'];
+$_SESSION['name'] = $user_data['full_name'];
+$_SESSION['full_name'] = $user_data['full_name'];
+$_SESSION['email'] = $user_data['email'];
+$_SESSION['phone_number'] = $user_data['phone_number'];
+$_SESSION['phonenum'] = $user_data['phone_number'];
 ?>
 
 <!DOCTYPE html>
