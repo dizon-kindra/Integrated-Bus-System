@@ -1,13 +1,15 @@
 ﻿using System;
 using System.Drawing;
+using System.Net.Http;
+using System.Text;
 using System.Windows.Forms;
-using MySql.Data.MySqlClient;
+using Newtonsoft.Json;
 
 namespace sr
 {
     public partial class login : Form
     {
-        private string connStr = "server=localhost;user=root;password=;database=sr_db;";
+        private readonly HttpClient client = new HttpClient();
 
         public login()
         {
@@ -19,78 +21,92 @@ namespace sr
             // No action needed
         }
 
-        //private void login_Load(object sender, EventArgs e)
-        // {
-        //  panel1.BackColor = Color.White;
-
-        // Make password hidden by default
-        //  textBox2.UseSystemPasswordChar = true;
-        // }
         private void login_Load(object sender, EventArgs e)
         {
             panel1.BackColor = Color.White;
             textBox2.UseSystemPasswordChar = true;
-
-            
         }
-        private void bunifuButton1_Click(object sender, EventArgs e)
+
+        private async void bunifuButton1_Click(object sender, EventArgs e)
         {
             string username = textBox1.Text.Trim();
             string password = textBox2.Text.Trim();
 
             if (username == "" || password == "")
             {
-                MessageBox.Show("Please enter username and password.", "Login Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(
+                    "Please enter username and password.",
+                    "Login Required",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning
+                );
                 return;
             }
 
-            string connStr = "server=localhost;user=root;password=;database=sr_db;";
-
-            using (MySqlConnection con = new MySqlConnection(connStr))
+            try
             {
-                try
+                string apiUrl = "http://localhost:3000/api/admin/login";
+
+                var loginData = new
                 {
-                    con.Open();
+                    username = username,
+                    password = password
+                };
 
-                    string query = "SELECT pass FROM login WHERE uname = @uname LIMIT 1";
+                string json = JsonConvert.SerializeObject(loginData);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                    using (MySqlCommand cmd = new MySqlCommand(query, con))
-                    {
-                        cmd.Parameters.AddWithValue("@uname", username);
+                HttpResponseMessage response = await client.PostAsync(apiUrl, content);
+                string responseBody = await response.Content.ReadAsStringAsync();
 
-                        object result = cmd.ExecuteScalar();
+                dynamic result = JsonConvert.DeserializeObject(responseBody);
 
-                        if (result == null || result == DBNull.Value)
-                        {
-                            MessageBox.Show("Incorrect username or password", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                            return;
-                        }
+                if (response.IsSuccessStatusCode && result.success == true)
+                {
+                    MessageBox.Show(
+                        "Login successfully",
+                        "Success",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information
+                    );
 
-                        string storedHash = result.ToString();
+                    AdminDashboardForm dashboard = new AdminDashboardForm();
+                    dashboard.Show();
 
-                        bool isPasswordCorrect = BCrypt.Net.BCrypt.Verify(password, storedHash);
-
-                        if (isPasswordCorrect)
-                        {
-                            MessageBox.Show("Login successfully", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                            AdminDashboardForm dashboard = new AdminDashboardForm();
-                            dashboard.Show();
-
-                            this.Hide();
-                        }
-                        else
-                        {
-                            MessageBox.Show("Incorrect username or password", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        }
-                    }
+                    this.Hide();
                 }
-                catch (Exception ex)
+                else
                 {
-                    MessageBox.Show("Database Error: " + ex.Message);
+                    string message = "Incorrect username or password.";
+
+                    if (result != null && result.message != null)
+                    {
+                        message = result.message.ToString();
+                    }
+
+                    MessageBox.Show(
+                        message,
+                        "Login Failed",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error
+                    );
                 }
             }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "Cannot connect to the Node API.\n\nPlease make sure:\n" +
+                    "1. XAMPP MySQL is running\n" +
+                    "2. Node API is running using npm start\n" +
+                    "3. API URL is http://localhost:3000/api/admin/login\n\n" +
+                    "Error: " + ex.Message,
+                    "Connection Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
+            }
         }
+
         private void bunifuCheckBox1_CheckedChanged(object sender, Bunifu.UI.WinForms.BunifuCheckBox.CheckedChangedEventArgs e)
         {
             if (bunifuCheckBox1.Checked)
