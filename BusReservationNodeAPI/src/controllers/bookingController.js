@@ -70,6 +70,8 @@ async function createBooking(req, res, next) {
       phone = '',
       email = '',
       seats = [],
+      payment_method = 'Pay at Terminal',
+      reference_no = '',
     } = req.body;
 
     if (
@@ -84,6 +86,25 @@ async function createBooking(req, res, next) {
         success: false,
         message: 'Missing required booking data.',
       });
+    }
+
+    const allowedPaymentMethods = ['Pay at Terminal', 'Online Payment'];
+
+    if (!allowedPaymentMethods.includes(payment_method)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payment method.',
+      });
+    }
+
+    const cleanReferenceNo = String(reference_no || '').trim();
+
+    let initialPaymentStatus = 'Pending';
+    let initialReservationStatus = 'Pending';
+
+    if (payment_method === 'Online Payment') {
+      initialPaymentStatus = 'Paid';
+      initialReservationStatus = 'Confirmed';
     }
 
     await conn.beginTransaction();
@@ -135,19 +156,51 @@ async function createBooking(req, res, next) {
         `INSERT INTO bookings
          (user_id, booking_code, schedule_id, passenger_name, phone, email, seat_no, total_amount,
           payment_status, reservation_status, checkin_status, boarding_status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', 'Pending', 'Not Checked-in', 'Not Boarded')`,
-        [user_id, bookingCode, schedule_id, passenger_name, phone, email, seatNo, fare]
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Not Checked-in', 'Not Boarded')`,
+        [
+          user_id,
+          bookingCode,
+          schedule_id,
+          passenger_name,
+          phone,
+          email,
+          seatNo,
+          fare,
+          initialPaymentStatus,
+          initialReservationStatus,
+        ]
       );
 
       const bookingId = bookingResult.insertId;
       createdBookingIds.push(bookingId);
 
-      await conn.query(
-        `INSERT INTO payments 
-         (booking_id, amount, payment_method, reference_no, payment_status)
-         VALUES (?, ?, 'Pay at Terminal', ?, 'Pending')`,
-        [bookingId, fare, bookingCode]
-      );
+      if (payment_method === 'Online Payment') {
+        await conn.query(
+          `INSERT INTO payments 
+           (booking_id, amount, payment_method, reference_no, payment_status, paid_at)
+           VALUES (?, ?, ?, ?, ?, NOW())`,
+          [
+            bookingId,
+            fare,
+            payment_method,
+            cleanReferenceNo || bookingCode,
+            initialPaymentStatus,
+          ]
+        );
+      } else {
+        await conn.query(
+          `INSERT INTO payments 
+           (booking_id, amount, payment_method, reference_no, payment_status)
+           VALUES (?, ?, ?, ?, ?)`,
+          [
+            bookingId,
+            fare,
+            payment_method,
+            bookingCode,
+            initialPaymentStatus,
+          ]
+        );
+      }
     }
 
     await conn.query(
@@ -157,11 +210,19 @@ async function createBooking(req, res, next) {
 
     await conn.commit();
 
+    const userMessage =
+      payment_method === 'Pay at Terminal'
+        ? 'Booking created successfully. Please pay at the terminal. Ticket will be available after admin confirmation.'
+        : 'Online payment successful. Your booking is confirmed and your ticket is now available.';
+
     res.json({
       success: true,
-      message: 'Booking created successfully.',
+      message: userMessage,
       booking_code: bookingCode,
       booking_ids: createdBookingIds,
+      payment_method,
+      payment_status: initialPaymentStatus,
+      reservation_status: initialReservationStatus,
       total_amount: fare * seats.length,
     });
   } catch (err) {
