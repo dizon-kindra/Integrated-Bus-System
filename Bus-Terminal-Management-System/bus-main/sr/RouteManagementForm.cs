@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Data;
 using System.Drawing;
+using System.Net.Http;
+using System.Text;
 using System.Windows.Forms;
-using MySql.Data.MySqlClient;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace sr
 {
@@ -22,17 +25,13 @@ namespace sr
 
         private DataGridView dgvRoutes;
 
-        // Change password if your MySQL root has password.
-        // If your XAMPP MySQL has no password, keep password blank.
-       
-        private string connStr = "server=localhost;user=root;password=;database=sr_db;";
+        private readonly HttpClient client = new HttpClient();
+        private readonly string apiBaseUrl = "http://localhost:3000/api";
 
         public RouteManagementForm()
         {
-           
-            BuildRouteUI();        // mao ni atong custom UI
-            LoadRoutes();
-            GenerateRouteID();
+            BuildRouteUI();
+            _ = LoadRoutes();
         }
 
         private void BuildRouteUI()
@@ -66,7 +65,6 @@ namespace sr
             lblInfo.Location = new Point(20, 15);
             panelInfo.Controls.Add(lblInfo);
 
-            // Left labels and textboxes
             Label lblRouteID = CreateLabel("Route ID:", 30, 70);
             txtRouteID = CreateTextBox(180, 65);
             txtRouteID.ReadOnly = true;
@@ -78,7 +76,6 @@ namespace sr
             Label lblDestination = CreateLabel("Destination:", 30, 160);
             txtDestination = CreateTextBox(180, 155);
 
-            // Right labels and textboxes
             Label lblFare = CreateLabel("Fare:", 560, 70);
             txtFare = CreateTextBox(710, 65);
 
@@ -100,7 +97,6 @@ namespace sr
             panelInfo.Controls.Add(txtOrigin);
             panelInfo.Controls.Add(lblDestination);
             panelInfo.Controls.Add(txtDestination);
-
             panelInfo.Controls.Add(lblFare);
             panelInfo.Controls.Add(txtFare);
             panelInfo.Controls.Add(lblDuration);
@@ -198,68 +194,96 @@ namespace sr
             return button;
         }
 
-        private MySqlConnection GetConnection()
-        {
-            return new MySqlConnection(connStr);
-        }
-
-        private void LoadRoutes()
+        private async System.Threading.Tasks.Task LoadRoutes()
         {
             try
             {
-                using (MySqlConnection conn = GetConnection())
+                HttpResponseMessage response = await client.GetAsync(apiBaseUrl + "/admin/routes");
+                string responseBody = await response.Content.ReadAsStringAsync();
+
+                JObject result = JObject.Parse(responseBody);
+
+                if (!response.IsSuccessStatusCode || result["success"]?.ToObject<bool>() != true)
                 {
-                    conn.Open();
-
-                    string query = @"
-                        SELECT 
-                            route_code AS 'Route ID',
-                            origin AS 'Origin',
-                            destination AS 'Destination',
-                            fare AS 'Fare',
-                            estimated_duration AS 'Estimated Duration',
-                            status AS 'Status'
-                        FROM routes
-                        ORDER BY route_id DESC";
-
-                    MySqlDataAdapter adapter = new MySqlDataAdapter(query, conn);
-                    DataTable table = new DataTable();
-                    adapter.Fill(table);
-
-                    dgvRoutes.DataSource = table;
+                    string message = result["message"]?.ToString() ?? "Failed to load routes.";
+                    MessageBox.Show(message, "API Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
                 }
+
+                JArray routes = (JArray)result["routes"];
+
+                DataTable table = new DataTable();
+                table.Columns.Add("route_id", typeof(int));
+                table.Columns.Add("Route ID", typeof(string));
+                table.Columns.Add("Origin", typeof(string));
+                table.Columns.Add("Destination", typeof(string));
+                table.Columns.Add("Fare", typeof(decimal));
+                table.Columns.Add("Estimated Duration", typeof(string));
+                table.Columns.Add("Status", typeof(string));
+
+                foreach (JObject route in routes)
+                {
+                    table.Rows.Add(
+                        route["route_id"]?.ToObject<int>() ?? 0,
+                        route["route_code"]?.ToString() ?? "",
+                        route["origin"]?.ToString() ?? "",
+                        route["destination"]?.ToString() ?? "",
+                        route["fare"]?.ToObject<decimal>() ?? 0,
+                        route["estimated_duration"]?.ToString() ?? "",
+                        route["status"]?.ToString() ?? ""
+                    );
+                }
+
+                dgvRoutes.DataSource = table;
+
+                if (dgvRoutes.Columns["route_id"] != null)
+                {
+                    dgvRoutes.Columns["route_id"].Visible = false;
+                }
+
+                GenerateRouteIDFromGrid();
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error loading routes:\n" + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    "Error loading routes from API.\n\nMake sure Node API is running.\n\n" + ex.Message,
+                    "API Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
             }
         }
 
-        private void GenerateRouteID()
+        private void GenerateRouteIDFromGrid()
         {
-            try
+            int maxId = 0;
+
+            if (dgvRoutes.DataSource is DataTable table)
             {
-                using (MySqlConnection conn = GetConnection())
+                foreach (DataRow row in table.Rows)
                 {
-                    conn.Open();
-
-                    string query = "SELECT IFNULL(MAX(route_id), 0) + 1 FROM routes";
-
-                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    int currentId;
+                    if (int.TryParse(row["route_id"].ToString(), out currentId))
                     {
-                        int nextID = Convert.ToInt32(cmd.ExecuteScalar());
-                        txtRouteID.Text = "RT-" + nextID.ToString("000");
+                        if (currentId > maxId)
+                        {
+                            maxId = currentId;
+                        }
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error generating Route ID:\n" + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+
+            txtRouteID.Text = "RT-" + (maxId + 1).ToString("000");
         }
 
         private bool ValidateFields()
         {
+            if (string.IsNullOrWhiteSpace(txtRouteID.Text))
+            {
+                MessageBox.Show("Route ID is required.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+
             if (string.IsNullOrWhiteSpace(txtOrigin.Text))
             {
                 MessageBox.Show("Please enter origin.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -282,16 +306,16 @@ namespace sr
             }
 
             decimal fare;
-            if (!decimal.TryParse(txtFare.Text, out fare))
+            if (!decimal.TryParse(txtFare.Text.Trim(), out fare))
             {
                 MessageBox.Show("Fare must be a valid number.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 txtFare.Focus();
                 return false;
             }
 
-            if (fare < 0)
+            if (fare <= 0)
             {
-                MessageBox.Show("Fare cannot be negative.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Fare must be greater than zero.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 txtFare.Focus();
                 return false;
             }
@@ -313,48 +337,52 @@ namespace sr
             return true;
         }
 
-        private void BtnAdd_Click(object sender, EventArgs e)
+        private async void BtnAdd_Click(object sender, EventArgs e)
         {
             if (!ValidateFields())
+            {
                 return;
+            }
 
             try
             {
-                using (MySqlConnection conn = GetConnection())
+                var routeData = new
                 {
-                    conn.Open();
+                    route_code = txtRouteID.Text.Trim(),
+                    origin = txtOrigin.Text.Trim(),
+                    destination = txtDestination.Text.Trim(),
+                    fare = Convert.ToDecimal(txtFare.Text.Trim()),
+                    estimated_duration = txtDuration.Text.Trim(),
+                    status = cmbStatus.Text.Trim()
+                };
 
-                    string query = @"
-                        INSERT INTO routes 
-                        (route_code, origin, destination, fare, estimated_duration, status)
-                        VALUES
-                        (@route_code, @origin, @destination, @fare, @duration, @status)";
+                string json = JsonConvert.SerializeObject(routeData);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@route_code", txtRouteID.Text.Trim());
-                        cmd.Parameters.AddWithValue("@origin", txtOrigin.Text.Trim());
-                        cmd.Parameters.AddWithValue("@destination", txtDestination.Text.Trim());
-                        cmd.Parameters.AddWithValue("@fare", Convert.ToDecimal(txtFare.Text.Trim()));
-                        cmd.Parameters.AddWithValue("@duration", txtDuration.Text.Trim());
-                        cmd.Parameters.AddWithValue("@status", cmbStatus.Text);
+                HttpResponseMessage response = await client.PostAsync(apiBaseUrl + "/admin/routes", content);
+                string responseBody = await response.Content.ReadAsStringAsync();
 
-                        cmd.ExecuteNonQuery();
-                    }
+                JObject result = JObject.Parse(responseBody);
+
+                if (response.IsSuccessStatusCode && result["success"]?.ToObject<bool>() == true)
+                {
+                    MessageBox.Show("Route added successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    ClearFields();
+                    await LoadRoutes();
                 }
-
-                MessageBox.Show("Route added successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                ClearFields();
-                LoadRoutes();
-                GenerateRouteID();
+                else
+                {
+                    string message = result["message"]?.ToString() ?? "Error adding route.";
+                    MessageBox.Show(message, "API Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error adding route:\n" + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Error adding route through API:\n" + ex.Message, "API Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        private void BtnUpdate_Click(object sender, EventArgs e)
+        private async void BtnUpdate_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtRouteID.Text))
             {
@@ -363,56 +391,57 @@ namespace sr
             }
 
             if (!ValidateFields())
+            {
                 return;
+            }
 
             try
             {
-                using (MySqlConnection conn = GetConnection())
+                if (dgvRoutes.CurrentRow == null || dgvRoutes.CurrentRow.Cells["route_id"].Value == null)
                 {
-                    conn.Open();
-
-                    string query = @"
-                        UPDATE routes SET
-                            origin = @origin,
-                            destination = @destination,
-                            fare = @fare,
-                            estimated_duration = @duration,
-                            status = @status
-                        WHERE route_code = @route_code";
-
-                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@route_code", txtRouteID.Text.Trim());
-                        cmd.Parameters.AddWithValue("@origin", txtOrigin.Text.Trim());
-                        cmd.Parameters.AddWithValue("@destination", txtDestination.Text.Trim());
-                        cmd.Parameters.AddWithValue("@fare", Convert.ToDecimal(txtFare.Text.Trim()));
-                        cmd.Parameters.AddWithValue("@duration", txtDuration.Text.Trim());
-                        cmd.Parameters.AddWithValue("@status", cmbStatus.Text);
-
-                        int rowsAffected = cmd.ExecuteNonQuery();
-
-                        if (rowsAffected > 0)
-                        {
-                            MessageBox.Show("Route updated successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        }
-                        else
-                        {
-                            MessageBox.Show("No route found to update.", "Not Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        }
-                    }
+                    MessageBox.Show("Please select a route from the table.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
                 }
 
-                ClearFields();
-                LoadRoutes();
-                GenerateRouteID();
+                int routeId = Convert.ToInt32(dgvRoutes.CurrentRow.Cells["route_id"].Value);
+
+                var routeData = new
+                {
+                    route_code = txtRouteID.Text.Trim(),
+                    origin = txtOrigin.Text.Trim(),
+                    destination = txtDestination.Text.Trim(),
+                    fare = Convert.ToDecimal(txtFare.Text.Trim()),
+                    estimated_duration = txtDuration.Text.Trim(),
+                    status = cmbStatus.Text.Trim()
+                };
+
+                string json = JsonConvert.SerializeObject(routeData);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                HttpResponseMessage response = await client.PutAsync(apiBaseUrl + "/admin/routes/" + routeId, content);
+                string responseBody = await response.Content.ReadAsStringAsync();
+
+                JObject result = JObject.Parse(responseBody);
+
+                if (response.IsSuccessStatusCode && result["success"]?.ToObject<bool>() == true)
+                {
+                    MessageBox.Show("Route updated successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    ClearFields();
+                    await LoadRoutes();
+                }
+                else
+                {
+                    string message = result["message"]?.ToString() ?? "Error updating route.";
+                    MessageBox.Show(message, "API Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error updating route:\n" + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Error updating route through API:\n" + ex.Message, "API Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        private void BtnDeactivate_Click(object sender, EventArgs e)
+        private async void BtnDeactivate_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtRouteID.Text))
             {
@@ -420,55 +449,68 @@ namespace sr
                 return;
             }
 
-            DialogResult result = MessageBox.Show(
+            DialogResult confirm = MessageBox.Show(
                 "Are you sure you want to deactivate this route?",
                 "Confirm Deactivate",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question
             );
 
-            if (result != DialogResult.Yes)
+            if (confirm != DialogResult.Yes)
+            {
                 return;
+            }
 
             try
             {
-                using (MySqlConnection conn = GetConnection())
+                if (dgvRoutes.CurrentRow == null || dgvRoutes.CurrentRow.Cells["route_id"].Value == null)
                 {
-                    conn.Open();
-
-                    string query = "UPDATE routes SET status = 'Inactive' WHERE route_code = @route_code";
-
-                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@route_code", txtRouteID.Text.Trim());
-
-                        int rowsAffected = cmd.ExecuteNonQuery();
-
-                        if (rowsAffected > 0)
-                        {
-                            MessageBox.Show("Route deactivated successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        }
-                        else
-                        {
-                            MessageBox.Show("No route found to deactivate.", "Not Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        }
-                    }
+                    MessageBox.Show("Please select a route from the table.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
                 }
 
-                ClearFields();
-                LoadRoutes();
-                GenerateRouteID();
+                int routeId = Convert.ToInt32(dgvRoutes.CurrentRow.Cells["route_id"].Value);
+
+                var routeData = new
+                {
+                    route_code = txtRouteID.Text.Trim(),
+                    origin = txtOrigin.Text.Trim(),
+                    destination = txtDestination.Text.Trim(),
+                    fare = Convert.ToDecimal(txtFare.Text.Trim()),
+                    estimated_duration = txtDuration.Text.Trim(),
+                    status = "Inactive"
+                };
+
+                string json = JsonConvert.SerializeObject(routeData);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                HttpResponseMessage response = await client.PutAsync(apiBaseUrl + "/admin/routes/" + routeId, content);
+                string responseBody = await response.Content.ReadAsStringAsync();
+
+                JObject result = JObject.Parse(responseBody);
+
+                if (response.IsSuccessStatusCode && result["success"]?.ToObject<bool>() == true)
+                {
+                    MessageBox.Show("Route deactivated successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    ClearFields();
+                    await LoadRoutes();
+                }
+                else
+                {
+                    string message = result["message"]?.ToString() ?? "Error deactivating route.";
+                    MessageBox.Show(message, "API Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error deactivating route:\n" + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Error deactivating route through API:\n" + ex.Message, "API Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         private void BtnClear_Click(object sender, EventArgs e)
         {
             ClearFields();
-            GenerateRouteID();
+            GenerateRouteIDFromGrid();
         }
 
         private void ClearFields()
@@ -477,13 +519,20 @@ namespace sr
             txtDestination.Clear();
             txtFare.Clear();
             txtDuration.Clear();
-            cmbStatus.SelectedIndex = 0;
+
+            if (cmbStatus.Items.Count > 0)
+            {
+                cmbStatus.SelectedIndex = 0;
+            }
+
             txtOrigin.Focus();
 
             if (dgvRoutes != null)
             {
                 dgvRoutes.ClearSelection();
             }
+
+            GenerateRouteIDFromGrid();
         }
 
         private void DgvRoutes_CellClick(object sender, DataGridViewCellEventArgs e)
@@ -499,6 +548,11 @@ namespace sr
                 txtDuration.Text = row.Cells["Estimated Duration"].Value.ToString();
                 cmbStatus.Text = row.Cells["Status"].Value.ToString();
             }
+        }
+
+        private void RouteManagementForm_Load(object sender, EventArgs e)
+        {
+            // Not used because UI is built in constructor.
         }
     }
 }
