@@ -1,5 +1,4 @@
 <?php
-require_once(__DIR__ . '/inc/db_config.php');
 require_once(__DIR__ . '/inc/essentials.php');
 
 if (session_status() === PHP_SESSION_NONE) {
@@ -28,79 +27,49 @@ if ($booking_id <= 0) {
     die("Invalid booking ID.");
 }
 
-$query = "
-    SELECT 
-        bk.booking_id,
-        bk.user_id,
-        bk.booking_code,
-        bk.passenger_name,
-        bk.phone,
-        bk.email,
-        bk.seat_no,
-        bk.total_amount,
-        bk.payment_status,
-        bk.reservation_status,
-        bk.checkin_status,
-        bk.boarding_status,
-        bk.created_at,
+$api_url = "http://localhost:3000/api/ticket-details?booking_id=" . urlencode($booking_id) . "&user_id=" . urlencode($user_id);
 
-        p.payment_id,
-        p.payment_method,
-        p.reference_no,
-        p.paid_at,
+$api_response = @file_get_contents($api_url);
 
-        s.schedule_id,
-        s.departure_date,
-        s.departure_time,
-        s.arrival_time,
-        s.fare,
-
-        b.bus_number,
-        b.plate_number,
-        b.bus_type,
-
-        r.origin,
-        r.destination,
-        r.estimated_duration
-    FROM bookings bk
-    LEFT JOIN payments p ON bk.booking_id = p.booking_id
-    INNER JOIN schedules s ON bk.schedule_id = s.schedule_id
-    INNER JOIN buses b ON s.bus_id = b.bus_id
-    INNER JOIN routes r ON s.route_id = r.route_id
-    WHERE bk.booking_id = ?
-    AND bk.user_id = ?
-    LIMIT 1
-";
-
-$result = select($query, [$booking_id, $user_id], 'ii');
-
-if (mysqli_num_rows($result) == 0) {
-    die("Booking not found.");
-}
-
-$data = mysqli_fetch_assoc($result);
-
-/*
-    Ticket Rule:
-    Passenger can only print/view official ticket after admin confirms payment.
-    Required:
-    payment_status = Paid
-    reservation_status = Confirmed
-*/
-if (
-    strtolower($data['payment_status'] ?? '') !== 'paid' ||
-    strtolower($data['reservation_status'] ?? '') !== 'confirmed'
-) {
+if ($api_response === false) {
     die("
         <div style='font-family: Arial, sans-serif; text-align:center; margin-top:80px;'>
-            <h2 style='color:#AD8B3A;'>Ticket Not Available Yet</h2>
-            <p>Your ticket can only be printed after the admin confirms your payment.</p>
-            <p><strong>Current Payment Status:</strong> " . htmlspecialchars($data['payment_status'] ?? 'Pending') . "</p>
-            <p><strong>Current Reservation Status:</strong> " . htmlspecialchars($data['reservation_status'] ?? 'Pending') . "</p>
+            <h2 style='color:#dc3545;'>Unable to Load Ticket</h2>
+            <p>Please make sure the Node API is running.</p>
             <a href='bookings.php' style='display:inline-block; margin-top:15px; padding:10px 20px; background:#172233; color:white; text-decoration:none; border-radius:6px;'>Back to My Bookings</a>
         </div>
     ");
 }
+
+$ticket_response = json_decode($api_response, true);
+
+if (!$ticket_response || !isset($ticket_response['success'])) {
+    die("
+        <div style='font-family: Arial, sans-serif; text-align:center; margin-top:80px;'>
+            <h2 style='color:#dc3545;'>Invalid Ticket Response</h2>
+            <p>The system could not read the ticket details.</p>
+            <a href='bookings.php' style='display:inline-block; margin-top:15px; padding:10px 20px; background:#172233; color:white; text-decoration:none; border-radius:6px;'>Back to My Bookings</a>
+        </div>
+    ");
+}
+
+if ($ticket_response['success'] !== true) {
+    $payment_status = $ticket_response['payment_status'] ?? 'Pending';
+    $reservation_status = $ticket_response['reservation_status'] ?? 'Pending';
+    $message = $ticket_response['message'] ?? 'Ticket is not available yet.';
+
+    die("
+        <div style='font-family: Arial, sans-serif; text-align:center; margin-top:80px;'>
+            <h2 style='color:#AD8B3A;'>Ticket Not Available Yet</h2>
+            <p>" . htmlspecialchars($message) . "</p>
+            <p><strong>Current Payment Status:</strong> " . htmlspecialchars($payment_status) . "</p>
+            <p><strong>Current Reservation Status:</strong> " . htmlspecialchars($reservation_status) . "</p>
+            <a href='bookings.php' style='display:inline-block; margin-top:15px; padding:10px 20px; background:#172233; color:white; text-decoration:none; border-radius:6px;'>Back to My Bookings</a>
+        </div>
+    ");
+}
+
+$data = $ticket_response['ticket'];
 
 function format_time_ticket($time)
 {
