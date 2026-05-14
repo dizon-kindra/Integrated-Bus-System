@@ -42,7 +42,7 @@ A dynamic **Bus Booking System** built using PHP, MySQL, AJAX, JavaScript, HTML,
    - Create a new database (e.g., `mybus`)
    - Import the provided SQL file (`mybus.sql`)
 4. **Configure the database connection:**
-   - Open `admin/inc/db_config.php`
+
    - Update the database credentials:
      ```php
      $host = 'localhost';
