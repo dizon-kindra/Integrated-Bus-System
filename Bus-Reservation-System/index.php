@@ -80,6 +80,11 @@
             color: #fff;
         }
 
+        .search-action-btn {
+            height: 42px;
+            font-weight: 600;
+        }
+
         @media screen and (max-width:575px) {
             .availability-form {
                 margin-top: 25px;
@@ -117,7 +122,9 @@ $today = date('Y-m-d');
                         Search available schedules, choose your route, reserve seats, and manage your bookings
                         through MYBUS Passenger Reservation System.
                     </p>
-                    <a href="#searchTrip" class="btn btn-primary px-4 py-2 mt-2">Search Trips</a>
+                    <a href="#searchTrip" class="btn btn-primary px-4 py-2 mt-2">
+                        <i class="bi bi-search me-1"></i> Search Trips
+                    </a>
                 </div>
             </div>
 
@@ -128,7 +135,9 @@ $today = date('Y-m-d');
                     <p>
                         Find your preferred bus schedule and reserve your seat in just a few steps.
                     </p>
-                    <a href="#searchTrip" class="btn btn-primary px-4 py-2 mt-2">Start Booking</a>
+                    <a href="#searchTrip" class="btn btn-primary px-4 py-2 mt-2">
+                        <i class="bi bi-ticket-perforated me-1"></i> Start Booking
+                    </a>
                 </div>
             </div>
 
@@ -139,7 +148,9 @@ $today = date('Y-m-d');
                     <p>
                         View booking status, check trip details, and print or download your ticket anytime.
                     </p>
-                    <a href="bookings.php" class="btn btn-primary px-4 py-2 mt-2">My Bookings</a>
+                    <a href="bookings.php" class="btn btn-primary px-4 py-2 mt-2">
+                        <i class="bi bi-journal-check me-1"></i> My Bookings
+                    </a>
                 </div>
             </div>
 
@@ -159,44 +170,40 @@ $today = date('Y-m-d');
             <form action='bus.php' method="GET">
                 <div class='row align-items-end'>
 
-                    <div class='col-lg-3 mb-3'>
+                    <div class='col-lg-3 col-md-6 mb-3'>
                         <label class='form-label fw-bold'>From</label>
                         <input type='text' class='form-control shadow-none' name="source" required placeholder="Enter origin">
                     </div>
 
-                    <div class='col-lg-3 mb-3'>
+                    <div class='col-lg-3 col-md-6 mb-3'>
                         <label class='form-label fw-bold'>To</label>
                         <input type='text' class='form-control shadow-none' name="destination" required placeholder="Enter destination">
                     </div>
 
-                    <div class='col-lg-2 mb-3'>
+                    <div class='col-lg-3 col-md-6 mb-3'>
                         <label class='form-label fw-bold'>Departure Date</label>
                         <input type='date' min="<?php echo $today; ?>" class='form-control shadow-none' name="date" required value="<?php echo $today; ?>">
                     </div>
 
-                    <div class='col-lg-2 mb-3'>
-                        <label class='form-label fw-bold'>Passengers</label>
-                        <input type='number' min="1" max="9" class='form-control shadow-none' name="passengers" required value="1">
-                    </div>
-
+                    <input type="hidden" name="passengers" value="1">
                     <input type="hidden" name="check_availability">
 
-                    <div class='col-lg-1 mb-lg-3 mt-2 d-grid'>
-                        <button type='submit' class='btn text-white shadow-none custom-bg'>
-                            Search
+                    <div class='col-lg-1 col-md-3 mb-lg-3 mb-3 d-grid'>
+                        <button type='submit' class='btn text-white shadow-none custom-bg search-action-btn' title="Search Trips">
+                            <i class="bi bi-search"></i>
                         </button>
                     </div>
 
-                    <div class='col-lg-1 mb-lg-3 mt-2 d-grid'>
-                        <a href="bus.php?view=all" class="btn view-all-btn shadow-none">
-                            View All
+                    <div class='col-lg-2 col-md-3 mb-lg-3 mb-3 d-grid'>
+                        <a href="bus.php?view=all" class="btn view-all-btn shadow-none search-action-btn" title="View All Trips">
+                            <i class="bi bi-list-ul me-1"></i> View All
                         </a>
                     </div>
 
                 </div>
             </form>
 
-            <div class="mt-3">
+            <div class="mt-2">
                 <small class="text-muted">
                     Tip: Click <b>View All</b> to browse all available trips added by the terminal admin.
                 </small>
@@ -215,7 +222,7 @@ $today = date('Y-m-d');
             <div class='bg-white text-center shadow p-4 how-card h-100'>
                 <i class='bi bi-search how-icon'></i>
                 <h5 class='mt-3 fw-bold'>Search Schedule</h5>
-                <p class='text-muted'>Choose your origin, destination, date, and number of passengers.</p>
+                <p class='text-muted'>Choose your origin, destination, and preferred departure date.</p>
             </div>
         </div>
 
@@ -430,7 +437,9 @@ $today = date('Y-m-d');
                     </div>
 
                     <div class='text-end'>
-                        <button type='submit' class='btn custom-bg text-white px-4'>Send Message</button>
+                        <button type='submit' class='btn custom-bg text-white px-4'>
+                            <i class="bi bi-send me-1"></i> Send Message
+                        </button>
                     </div>
                 </form>
             </div>
