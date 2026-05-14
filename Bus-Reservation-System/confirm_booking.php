@@ -186,76 +186,150 @@ function format_date_confirm($date)
             background: #f8f9fa;
             border: 1px solid #ddd;
             border-radius: 16px;
-            padding: 20px;
+            padding: 22px;
         }
 
         .seat-map {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
-            gap: 12px;
-            max-width: 760px;
+            grid-template-columns: repeat(auto-fill, minmax(74px, 1fr));
+            gap: 18px;
+            max-width: 900px;
         }
 
-        .seat-btn {
-            height: 52px;
-            border-radius: 12px;
+        .bus-seat {
+            width: 70px;
+            height: 78px;
             border: 2px solid #ced4da;
-            background: #fff;
-            font-weight: 700;
+            border-radius: 14px;
+            background: #ffffff;
             cursor: pointer;
-            transition: 0.2s;
+            position: relative;
+            transition: 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
         }
 
-        .seat-btn:hover {
+        .bus-seat:hover {
+            transform: translateY(-3px);
             border-color: #0d6efd;
-            transform: translateY(-2px);
         }
 
-        .seat-btn.selected {
+        .seat-icon {
+            width: 42px;
+            height: 42px;
+            background-color: #212529;
+            mask-image: url('images/seat.png');
+            -webkit-mask-image: url('images/seat.png');
+            mask-size: contain;
+            -webkit-mask-size: contain;
+            mask-repeat: no-repeat;
+            -webkit-mask-repeat: no-repeat;
+            mask-position: center;
+            -webkit-mask-position: center;
+        }
+
+        .seat-no {
+            position: absolute;
+            bottom: 5px;
+            font-size: 12px;
+            font-weight: 800;
+            color: #212529;
+        }
+
+        .bus-seat.selected {
             background: #0d6efd;
             border-color: #0d6efd;
-            color: #fff;
         }
 
-        .seat-btn.booked {
+        .bus-seat.selected .seat-icon {
+            background-color: #ffffff;
+        }
+
+        .bus-seat.selected .seat-no {
+            color: #ffffff;
+        }
+
+        .bus-seat.booked {
             background: #dc3545;
             border-color: #dc3545;
-            color: #fff;
             cursor: not-allowed;
-            opacity: 0.85;
+            opacity: 0.95;
+        }
+
+        .bus-seat.booked:hover {
+            transform: none;
+        }
+
+        .bus-seat.booked .seat-icon {
+            background-color: #ffffff;
+        }
+
+        .bus-seat.booked .seat-no {
+            color: #ffffff;
         }
 
         .seat-legend {
             display: flex;
             flex-wrap: wrap;
-            gap: 15px;
-            margin-bottom: 15px;
+            gap: 18px;
+            margin-bottom: 18px;
         }
 
         .legend-item {
             display: flex;
             align-items: center;
-            gap: 7px;
+            gap: 8px;
             font-size: 14px;
         }
 
-        .legend-box {
+        .legend-seat {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            border: 2px solid #ced4da;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .legend-seat::before {
+            content: "";
             width: 22px;
             height: 22px;
-            border-radius: 6px;
-            border: 1px solid #ccc;
+            background-color: #212529;
+            mask-image: url('images/seat.png');
+            -webkit-mask-image: url('images/seat.png');
+            mask-size: contain;
+            -webkit-mask-size: contain;
+            mask-repeat: no-repeat;
+            -webkit-mask-repeat: no-repeat;
+            mask-position: center;
+            -webkit-mask-position: center;
         }
 
         .legend-available {
-            background: #fff;
+            background: #ffffff;
         }
 
         .legend-selected {
             background: #0d6efd;
+            border-color: #0d6efd;
+        }
+
+        .legend-selected::before {
+            background-color: #ffffff;
         }
 
         .legend-booked {
             background: #dc3545;
+            border-color: #dc3545;
+        }
+
+        .legend-booked::before {
+            background-color: #ffffff;
         }
 
         .selected-seat-display {
@@ -414,17 +488,17 @@ function format_date_confirm($date)
                     <div class="seat-layout-wrapper mb-3">
                         <div class="seat-legend">
                             <div class="legend-item">
-                                <div class="legend-box legend-available"></div>
+                                <div class="legend-seat legend-available"></div>
                                 <span>Available</span>
                             </div>
 
                             <div class="legend-item">
-                                <div class="legend-box legend-selected"></div>
+                                <div class="legend-seat legend-selected"></div>
                                 <span>Selected</span>
                             </div>
 
                             <div class="legend-item">
-                                <div class="legend-box legend-booked"></div>
+                                <div class="legend-seat legend-booked"></div>
                                 <span>Not Available</span>
                             </div>
                         </div>
@@ -622,8 +696,13 @@ document.addEventListener('DOMContentLoaded', function () {
         for (let seat = 1; seat <= busCapacity; seat++) {
             const seatBtn = document.createElement('button');
             seatBtn.type = 'button';
-            seatBtn.innerText = seat;
-            seatBtn.className = 'seat-btn';
+            seatBtn.className = 'bus-seat';
+            seatBtn.setAttribute('aria-label', 'Seat ' + seat);
+
+            seatBtn.innerHTML = `
+                <span class="seat-icon"></span>
+                <span class="seat-no">${seat}</span>
+            `;
 
             if (bookedSeats.includes(seat)) {
                 seatBtn.classList.add('booked');
