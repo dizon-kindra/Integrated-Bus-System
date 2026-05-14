@@ -2,6 +2,46 @@ const bcrypt = require('bcryptjs');
 const db = require('../db');
 const { normalizePhpHash } = require('../utils');
 
+async function getProfile(req, res, next) {
+  try {
+    const userId = Number(req.query.user_id);
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required.',
+      });
+    }
+
+    const [users] = await db.query(
+      `SELECT 
+          user_id, 
+          full_name, 
+          email, 
+          phone_number, 
+          created_at
+       FROM users 
+       WHERE user_id = ? 
+       LIMIT 1`,
+      [userId]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found.',
+      });
+    }
+
+    res.json({
+      success: true,
+      user: users[0],
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function updateProfile(req, res, next) {
   try {
     const userId = Number(req.body.user_id);
@@ -107,6 +147,7 @@ async function changePassword(req, res, next) {
 }
 
 module.exports = {
+  getProfile,
   updateProfile,
   changePassword,
 };
