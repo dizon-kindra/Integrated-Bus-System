@@ -1,8 +1,10 @@
 <?php
-require('admin/inc/db_config.php');
-require('admin/inc/essentials.php');
+require_once(__DIR__ . '/inc/db_config.php');
+require_once(__DIR__ . '/inc/essentials.php');
 
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 if (!(isset($_SESSION['login']) && $_SESSION['login'] == true)) {
     redirect('index.php');
@@ -152,6 +154,8 @@ $user_data = mysqli_fetch_assoc($user_res);
                     <h5 class="fw-bold mb-3">Change Password</h5>
 
                     <form id="passwordForm">
+                        <input type="hidden" id="password_user_id" value="<?php echo (int)$user_data['user_id']; ?>">
+
                         <div class="row">
                             <div class="col-md-4 mb-3">
                                 <label class="form-label profile-label">Current Password</label>
@@ -250,6 +254,11 @@ document.addEventListener('DOMContentLoaded', function () {
             const fullName = document.getElementById('full_name').value.trim();
             const phoneNumber = document.getElementById('phone_number').value.trim();
 
+            if (fullName === '' || phoneNumber === '') {
+                showCenterPopup('error', 'Please fill in all required fields.');
+                return;
+            }
+
             fetch(`${API_BASE_URL}/update-profile`, {
                 method: 'PUT',
                 headers: {
@@ -268,11 +277,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.log("Update profile response:", data);
 
                 if (data.success) {
-                    showCenterPopup('success', data.message, function () {
+                    showCenterPopup('success', data.message || 'Profile updated successfully.', function () {
                         location.reload();
                     });
                 } else {
-                    showCenterPopup('error', data.message);
+                    showCenterPopup('error', data.message || 'Profile update failed.');
                 }
             })
             .catch(function(error) {
@@ -286,10 +295,20 @@ document.addEventListener('DOMContentLoaded', function () {
         passwordForm.addEventListener('submit', function(e) {
             e.preventDefault();
 
-            const userId = document.getElementById('user_id').value;
+            const userId = document.getElementById('password_user_id').value;
             const currentPassword = document.getElementById('current_password').value;
             const newPassword = document.getElementById('new_password').value;
             const confirmPassword = document.getElementById('confirm_password').value;
+
+            if (currentPassword === '' || newPassword === '' || confirmPassword === '') {
+                showCenterPopup('error', 'Please fill in all password fields.');
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                showCenterPopup('error', 'New password and confirm password do not match.');
+                return;
+            }
 
             fetch(`${API_BASE_URL}/change-password`, {
                 method: 'PUT',
@@ -310,11 +329,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.log("Change password response:", data);
 
                 if (data.success) {
-                    showCenterPopup('success', data.message, function () {
+                    showCenterPopup('success', data.message || 'Password changed successfully.', function () {
                         passwordForm.reset();
                     });
                 } else {
-                    showCenterPopup('error', data.message);
+                    showCenterPopup('error', data.message || 'Password change failed.');
                 }
             })
             .catch(function(error) {
