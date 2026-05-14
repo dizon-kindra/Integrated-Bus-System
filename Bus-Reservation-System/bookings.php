@@ -9,25 +9,62 @@
 
     <style>
         .booking-card {
-            border-radius: 16px;
+            border-radius: 18px;
         }
 
-        .table thead th {
+        .booking-table {
+            font-size: 13px;
+        }
+
+        .booking-table thead th {
             white-space: nowrap;
             vertical-align: middle;
+            padding: 12px 8px;
         }
 
-        .table tbody td {
+        .booking-table tbody td {
             vertical-align: middle;
+            padding: 12px 8px;
         }
 
         .badge-status {
-            font-size: 12px;
-            padding: 7px 10px;
+            font-size: 11px;
+            padding: 6px 9px;
+            margin: 2px;
+            display: inline-block;
+            white-space: nowrap;
         }
 
         .action-btn {
             white-space: nowrap;
+            font-size: 12px;
+            padding: 6px 10px;
+        }
+
+        .booking-code {
+            font-weight: 700;
+            color: #172233;
+        }
+
+        .small-muted {
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        .trip-main {
+            font-weight: 700;
+            color: #172233;
+        }
+
+        @media screen and (max-width: 992px) {
+            .booking-table {
+                font-size: 12px;
+            }
+
+            .booking-table thead th,
+            .booking-table tbody td {
+                padding: 9px 6px;
+            }
         }
     </style>
 </head>
@@ -44,7 +81,7 @@ if (!(isset($_SESSION['login']) && $_SESSION['login'] == true)) {
 $user_id = $_SESSION['user_id'] ?? $_SESSION['id'] ?? 0;
 ?>
 
-<div class="container">
+<div class="container-fluid px-lg-5 px-md-4 px-3">
     <div class="row">
         <div class="col-12 my-5 px-4">
             <h2 class="fw-bold h-font">BOOKINGS</h2>
@@ -57,7 +94,7 @@ $user_id = $_SESSION['user_id'] ?? $_SESSION['id'] ?? 0;
 
         <div class="col-12 px-4 mb-5">
             <div class="card border-0 shadow-sm booking-card">
-                <div class="card-body">
+                <div class="card-body p-lg-4 p-3">
 
                     <div id="bookingsLoader" class="text-center py-5">
                         <div class="spinner-border text-info" role="status">
@@ -67,16 +104,14 @@ $user_id = $_SESSION['user_id'] ?? $_SESSION['id'] ?? 0;
                     </div>
 
                     <div class="table-responsive d-none" id="bookingsTableWrapper">
-                        <table class="table table-hover table-bordered align-middle text-center mb-0">
+                        <table class="table table-hover table-bordered align-middle text-center mb-0 booking-table">
                             <thead style="background:#AD8B3A; color:white;">
                                 <tr>
                                     <th>#</th>
                                     <th>Booking Code</th>
-                                    <th>Bus</th>
-                                    <th>Route</th>
-                                    <th>Travel Date</th>
-                                    <th>Time</th>
-                                    <th>Seat No.</th>
+                                    <th>Trip Details</th>
+                                    <th>Travel Schedule</th>
+                                    <th>Seat</th>
                                     <th>Amount</th>
                                     <th>Payment</th>
                                     <th>Reservation</th>
@@ -168,6 +203,25 @@ document.addEventListener('DOMContentLoaded', function () {
         return hour + ':' + minute + ' ' + ampm;
     }
 
+    function formatTravelDate(dateValue) {
+        if (!dateValue) {
+            return 'N/A';
+        }
+
+        const date = new Date(dateValue);
+
+        if (isNaN(date.getTime())) {
+            return dateValue;
+        }
+
+        return date.toLocaleDateString('en-US', {
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: '2-digit'
+        });
+    }
+
     function formatDateTime(dateTimeValue) {
         if (!dateTimeValue) {
             return 'N/A';
@@ -179,10 +233,14 @@ document.addEventListener('DOMContentLoaded', function () {
             return dateTimeValue;
         }
 
-        return date.toLocaleDateString() + ' | ' + date.toLocaleTimeString([], {
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: '2-digit'
+        }) + '<br><span class="small-muted">' + date.toLocaleTimeString([], {
             hour: '2-digit',
             minute: '2-digit'
-        });
+        }) + '</span>';
     }
 
     function getPaymentBadge(status) {
@@ -192,16 +250,16 @@ document.addEventListener('DOMContentLoaded', function () {
             return '<span class="badge bg-success badge-status">Paid</span>';
         }
 
-        if (value === 'pending verification') {
-            return '<span class="badge bg-info text-dark badge-status">Pending Verification</span>';
-        }
-
         if (value === 'cancelled' || value === 'canceled') {
             return '<span class="badge bg-danger badge-status">Cancelled</span>';
         }
 
         if (value === 'pending') {
-            return '<span class="badge bg-warning text-dark badge-status">Pending - Pay at Terminal</span>';
+            return '<span class="badge bg-warning text-dark badge-status">Pending Payment</span>';
+        }
+
+        if (value === 'pending verification') {
+            return '<span class="badge bg-info text-dark badge-status">Pending Verification</span>';
         }
 
         return '<span class="badge bg-secondary badge-status">' + status + '</span>';
@@ -229,66 +287,32 @@ document.addEventListener('DOMContentLoaded', function () {
         return '<span class="badge bg-secondary badge-status">' + status + '</span>';
     }
 
-    function getSimpleBadge(status) {
-        const value = (status || '').toLowerCase();
+    function getCheckinBadge(status) {
+        const value = (status || 'Not Checked-in').toLowerCase();
 
-        if (value.includes('checked') || value.includes('boarded')) {
-            return '<span class="badge bg-success badge-status">' + status + '</span>';
+        if (value === 'checked-in' || value === 'checked in') {
+            return '<span class="badge bg-success badge-status">Checked-in</span>';
         }
 
         if (value.includes('not')) {
-            return '<span class="badge bg-secondary badge-status">' + status + '</span>';
+            return '<span class="badge bg-secondary badge-status">Not Checked-in</span>';
         }
 
         return '<span class="badge bg-info text-dark badge-status">' + status + '</span>';
     }
 
-    function getActionButton(booking) {
-        const paymentStatus = (booking.payment_status || 'Pending').toLowerCase();
-        const reservationStatus = (booking.reservation_status || 'Pending').toLowerCase();
-        const checkinStatus = (booking.checkin_status || 'Not Checked-in').toLowerCase();
-        const boardingStatus = (booking.boarding_status || 'Not Boarded').toLowerCase();
+    function getBoardingBadge(status) {
+        const value = (status || 'Not Boarded').toLowerCase();
 
-        if (reservationStatus === 'cancelled' || paymentStatus === 'cancelled') {
-            return '<span class="badge bg-danger badge-status">Cancelled</span>';
+        if (value === 'boarded') {
+            return '<span class="badge bg-success badge-status">Boarded</span>';
         }
 
-        /*
-            Ticket Rule:
-            Print Ticket is only available if:
-            payment_status = Paid
-            AND
-            reservation_status = Confirmed
-        */
-        if (paymentStatus === 'paid' && reservationStatus === 'confirmed') {
-            return (
-                '<a href="generate_pdf.php?booking_id=' + booking.booking_id + '" ' +
-                    'class="btn btn-dark btn-sm shadow-none action-btn">' +
-                    'Print Ticket' +
-                '</a>'
-            );
+        if (value.includes('not')) {
+            return '<span class="badge bg-secondary badge-status">Not Boarded</span>';
         }
 
-        if (paymentStatus === 'pending verification') {
-            return '<span class="badge bg-info text-dark badge-status">Waiting for Admin Verification</span>';
-        }
-
-        if (
-            paymentStatus === 'pending' &&
-            reservationStatus === 'pending' &&
-            checkinStatus !== 'checked-in' &&
-            boardingStatus !== 'boarded'
-        ) {
-            return (
-                '<button class="btn btn-danger btn-sm shadow-none action-btn cancel-booking" ' +
-                    'data-booking-id="' + booking.booking_id + '">' +
-                    'Cancel' +
-                '</button>' +
-                '<br><small class="text-muted">Pay at Terminal</small>'
-            );
-        }
-
-        return '<span class="badge bg-secondary badge-status">Waiting for Confirmation</span>';
+        return '<span class="badge bg-info text-dark badge-status">' + status + '</span>';
     }
 
     function loadBookings() {
@@ -308,7 +332,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     bookingsTableWrapper.classList.remove('d-none');
                     bookingsTableBody.innerHTML =
                         '<tr>' +
-                            '<td colspan="14" class="text-center text-danger py-4">' +
+                            '<td colspan="12" class="text-center text-danger py-4">' +
                                 data.message +
                             '</td>' +
                         '</tr>';
@@ -325,6 +349,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 data.bookings.forEach(function (booking, index) {
                     const departureTime = formatTime(booking.departure_time);
                     const arrivalTime = formatTime(booking.arrival_time);
+                    const travelDate = formatTravelDate(booking.departure_date);
                     const bookedOn = formatDateTime(booking.created_at);
 
                     const paymentStatus = booking.payment_status || 'Pending';
@@ -332,23 +357,65 @@ document.addEventListener('DOMContentLoaded', function () {
                     const checkinStatus = booking.checkin_status || 'Not Checked-in';
                     const boardingStatus = booking.boarding_status || 'Not Boarded';
 
-                    const actionBtn = getActionButton(booking);
+                    let actionBtn = '-';
+
+                    if (
+                        paymentStatus.toLowerCase() === 'pending' &&
+                        reservationStatus.toLowerCase() === 'pending' &&
+                        checkinStatus.toLowerCase() !== 'checked-in' &&
+                        boardingStatus.toLowerCase() !== 'boarded'
+                    ) {
+                        actionBtn =
+                            '<button class="btn btn-danger btn-sm shadow-none action-btn cancel-booking" ' +
+                                'data-booking-id="' + booking.booking_id + '">' +
+                                'Cancel' +
+                            '</button>';
+                    } else if (
+                        paymentStatus.toLowerCase() === 'paid' &&
+                        (
+                            reservationStatus.toLowerCase() === 'confirmed' ||
+                            reservationStatus.toLowerCase() === 'completed'
+                        )
+                    ) {
+                        actionBtn =
+                            '<a href="generate_pdf.php?booking_id=' + booking.booking_id + '" ' +
+                                'class="btn btn-dark btn-sm shadow-none action-btn">' +
+                                'Print Ticket' +
+                            '</a>';
+                    }
 
                     html +=
                         '<tr>' +
                             '<td>' + (index + 1) + '</td>' +
-                            '<td class="fw-semibold">' + (booking.booking_code || 'N/A') + '</td>' +
-                            '<td>' + (booking.bus_number || 'N/A') + '</td>' +
-                            '<td>' + (booking.origin || 'N/A') + ' → ' + (booking.destination || 'N/A') + '</td>' +
-                            '<td>' + (booking.departure_date || 'N/A') + '</td>' +
-                            '<td>' + departureTime + ' - ' + arrivalTime + '</td>' +
+
+                            '<td>' +
+                                '<div class="booking-code">' + (booking.booking_code || 'N/A') + '</div>' +
+                            '</td>' +
+
+                            '<td>' +
+                                '<div class="trip-main">' + (booking.bus_number || 'N/A') + '</div>' +
+                                '<div class="small-muted">' + (booking.origin || 'N/A') + ' → ' + (booking.destination || 'N/A') + '</div>' +
+                            '</td>' +
+
+                            '<td>' +
+                                '<div class="trip-main">' + travelDate + '</div>' +
+                                '<div class="small-muted">' + departureTime + ' - ' + arrivalTime + '</div>' +
+                            '</td>' +
+
                             '<td>' + (booking.seat_no || 'N/A') + '</td>' +
+
                             '<td>₱' + parseFloat(booking.total_amount || booking.fare || 0).toFixed(2) + '</td>' +
+
                             '<td>' + getPaymentBadge(paymentStatus) + '</td>' +
+
                             '<td>' + getReservationBadge(reservationStatus) + '</td>' +
-                            '<td>' + getSimpleBadge(checkinStatus) + '</td>' +
-                            '<td>' + getSimpleBadge(boardingStatus) + '</td>' +
+
+                            '<td>' + getCheckinBadge(checkinStatus) + '</td>' +
+
+                            '<td>' + getBoardingBadge(boardingStatus) + '</td>' +
+
                             '<td>' + bookedOn + '</td>' +
+
                             '<td>' + actionBtn + '</td>' +
                         '</tr>';
                 });
@@ -366,7 +433,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 bookingsTableBody.innerHTML =
                     '<tr>' +
-                        '<td colspan="14" class="text-center text-danger py-4">' +
+                        '<td colspan="12" class="text-center text-danger py-4">' +
                             'Unable to load bookings. Please make sure the Node API is running.' +
                         '</td>' +
                     '</tr>';
