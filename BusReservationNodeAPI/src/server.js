@@ -14,6 +14,7 @@ const busRoutes = require('./routes/busRoutes');
 const routeRoutes = require('./routes/routeRoutes');
 const scheduleRoutes = require('./routes/scheduleRoutes');
 const ticketRoutes = require('./routes/ticketRoutes');
+const bookingDetailsRoutes = require('./routes/bookingDetailsRoutes');
 
 const app = express();
 
@@ -40,6 +41,7 @@ app.use('/api', busRoutes);
 app.use('/api', routeRoutes);
 app.use('/api', scheduleRoutes);
 app.use('/api', ticketRoutes);
+app.use('/api', bookingDetailsRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
