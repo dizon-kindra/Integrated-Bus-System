@@ -2,6 +2,19 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+
+$passenger_name = $_SESSION['name']
+    ?? $_SESSION['full_name']
+    ?? $_SESSION['email']
+    ?? 'Passenger';
+
+$passenger_name = trim($passenger_name);
+
+if ($passenger_name == '') {
+    $passenger_name = 'Passenger';
+}
+
+$first_name = explode(' ', $passenger_name)[0];
 ?>
 
 <!-- Navbar -->
@@ -22,29 +35,41 @@ if (session_status() === PHP_SESSION_NONE) {
                 <?php if (isset($_SESSION['login']) && $_SESSION['login'] == true) { ?>
 
                     <li class="nav-item">
-                        <a class="nav-link h-font me-2 chover" href="index.php">Home</a>
+                        <a class="nav-link h-font me-2 chover" href="index.php">
+                            Home
+                        </a>
                     </li>
 
                     <li class="nav-item">
-                        <a class="nav-link h-font me-2 chover" href="index.php#searchTrip">Search Trips</a>
+                        <a class="nav-link h-font me-2 chover" href="index.php#searchTrip">
+                            Search Trips
+                        </a>
                     </li>
 
                     <li class="nav-item">
-                        <a class="nav-link h-font me-2 chover" href="bookings.php">My Bookings</a>
+                        <a class="nav-link h-font me-2 chover" href="bookings.php">
+                            My Bookings
+                        </a>
                     </li>
 
                 <?php } else { ?>
 
                     <li class="nav-item">
-                        <a class="nav-link h-font me-2 chover" href="index.php">Home</a>
+                        <a class="nav-link h-font me-2 chover" href="index.php">
+                            Home
+                        </a>
                     </li>
 
                     <li class="nav-item">
-                        <a class="nav-link h-font me-2 chover" href="index.php#about">About</a>
+                        <a class="nav-link h-font me-2 chover" href="index.php#about">
+                            About
+                        </a>
                     </li>
 
                     <li class="nav-item">
-                        <a class="nav-link h-font me-2 chover" href="index.php#contactus">Contact</a>
+                        <a class="nav-link h-font me-2 chover" href="index.php#contactus">
+                            Contact
+                        </a>
                     </li>
 
                 <?php } ?>
@@ -53,26 +78,37 @@ if (session_status() === PHP_SESSION_NONE) {
 
             <?php if (isset($_SESSION['login']) && $_SESSION['login'] == true) { ?>
 
-                <div class="d-flex align-items-center">
-                    <a href="profile.php" class="btn btn-outline-dark shadow-none me-lg-3 me-2 h-font">
-                        Profile
+                <!-- Logged-in User Actions: Icon Style Only -->
+                <div class="d-flex align-items-center flex-wrap gap-4">
+
+                    <a href="profile.php"
+                        class="text-decoration-none d-flex align-items-center h-font navbar-user-link"
+                        title="Profile">
+                        <i class="bi bi-person-circle fs-5 me-2"></i>
+                        <span><?php echo htmlspecialchars($first_name); ?></span>
                     </a>
 
-                    <a href="logout.php" class="btn btn-dark shadow-none h-font">
-                        Logout
+                    <a href="logout.php"
+                        class="text-decoration-none d-flex align-items-center h-font navbar-logout-link"
+                        title="Logout">
+                        <i class="bi bi-box-arrow-right fs-5 me-2"></i>
+                        <span>Logout</span>
                     </a>
+
                 </div>
 
             <?php } else { ?>
 
-                <div class="d-flex">
-                    <button class="btn btn-outline-dark shadow-none me-lg-3 me-2 h-font"
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-outline-dark shadow-none h-font d-flex align-items-center"
                         data-bs-toggle="modal" data-bs-target="#loginModal">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>
                         Login
                     </button>
 
-                    <button class="btn btn-dark shadow-none h-font"
+                    <button class="btn btn-dark shadow-none h-font d-flex align-items-center"
                         data-bs-toggle="modal" data-bs-target="#registerModal">
+                        <i class="bi bi-person-plus me-2"></i>
                         Register
                     </button>
                 </div>
@@ -82,6 +118,30 @@ if (session_status() === PHP_SESSION_NONE) {
         </div>
     </div>
 </nav>
+
+<style>
+    .navbar-user-link {
+        color: #AD8B3A;
+        font-weight: 700;
+        transition: 0.2s ease;
+    }
+
+    .navbar-user-link:hover {
+        color: #8f722e;
+        transform: translateY(-1px);
+    }
+
+    .navbar-logout-link {
+        color: #212529;
+        font-weight: 700;
+        transition: 0.2s ease;
+    }
+
+    .navbar-logout-link:hover {
+        color: #AD8B3A;
+        transform: translateY(-1px);
+    }
+</style>
 
 <!-- Login Modal -->
 <div class="modal fade" id="loginModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
@@ -128,6 +188,7 @@ if (session_status() === PHP_SESSION_NONE) {
                     </div>
 
                     <button type="submit" class="btn btn-dark shadow-none w-100 py-2">
+                        <i class="bi bi-box-arrow-in-right me-1"></i>
                         Login
                     </button>
 
@@ -215,6 +276,7 @@ if (session_status() === PHP_SESSION_NONE) {
                     </div>
 
                     <button type="submit" class="btn btn-dark shadow-none w-100 py-2">
+                        <i class="bi bi-person-plus me-1"></i>
                         Register
                     </button>
 
