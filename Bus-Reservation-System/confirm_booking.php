@@ -16,11 +16,6 @@ $user_email = $_SESSION['email'] ?? '';
 $user_phone = $_SESSION['phone_number'] ?? $_SESSION['phonenum'] ?? '';
 
 $schedule_id = isset($_GET['schedule_id']) ? (int)$_GET['schedule_id'] : 0;
-$passengers = isset($_GET['passengers']) ? (int)$_GET['passengers'] : 1;
-
-if ($passengers <= 0) {
-    $passengers = 1;
-}
 
 if ($schedule_id <= 0) {
     die("Invalid booking request.");
@@ -65,8 +60,8 @@ if (strtolower($schedule['trip_status']) == 'cancelled') {
     die("This trip is no longer available.");
 }
 
-if ($passengers > (int)$schedule['available_seats']) {
-    die("Not enough available seats for this trip.");
+if ((int)$schedule['available_seats'] <= 0) {
+    die("No available seats for this trip.");
 }
 
 $bookedSeats = [];
@@ -86,7 +81,7 @@ if ($booked_result) {
     }
 }
 
-$total_amount = (float)$schedule['fare'] * $passengers;
+$total_amount = (float)$schedule['fare'];
 
 function format_time_confirm($time)
 {
@@ -335,9 +330,15 @@ function format_date_confirm($date)
         .selected-seat-display {
             background: #eef6ff;
             border-left: 5px solid #0d6efd;
-            padding: 12px 15px;
+            padding: 15px;
             border-radius: 8px;
             font-size: 14px;
+        }
+
+        .dynamic-total {
+            font-size: 20px;
+            color: #198754;
+            font-weight: 800;
         }
 
         .d-none {
@@ -404,11 +405,6 @@ function format_date_confirm($date)
                                 <div class="summary-label">Phone</div>
                                 <div class="summary-value"><?php echo htmlspecialchars($user_phone); ?></div>
                             </div>
-
-                            <div class="info-box">
-                                <div class="summary-label">No. of Passenger(s)</div>
-                                <div class="summary-value"><?php echo $passengers; ?></div>
-                            </div>
                         </div>
 
                         <div class="col-lg-7 col-md-6">
@@ -449,18 +445,9 @@ function format_date_confirm($date)
 
                                 <div class="col-md-6">
                                     <div class="info-box">
-                                        <div class="summary-label">Fare</div>
+                                        <div class="summary-label">Fare Per Seat</div>
                                         <div class="summary-value">
-                                            ₱<?php echo number_format((float)$schedule['fare'], 2); ?> x <?php echo $passengers; ?> passenger(s)
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <div class="info-box">
-                                        <div class="summary-label">Total Amount</div>
-                                        <div class="summary-value fs-5 text-success">
-                                            ₱<?php echo number_format($total_amount, 2); ?>
+                                            ₱<?php echo number_format((float)$schedule['fare'], 2); ?>
                                         </div>
                                     </div>
                                 </div>
@@ -473,6 +460,15 @@ function format_date_confirm($date)
                                         </div>
                                     </div>
                                 </div>
+
+                                <div class="col-md-6">
+                                    <div class="info-box">
+                                        <div class="summary-label">Current Total</div>
+                                        <div class="summary-value fs-5 text-success" id="topTotalAmount">
+                                            ₱0.00
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -482,7 +478,7 @@ function format_date_confirm($date)
                     <h5 class="fw-bold mb-3">Seat Selection</h5>
 
                     <div class="seat-note mb-3">
-                        Please select <?php echo $passengers; ?> seat(s). Red seats are already booked.
+                        Please select one or more available seat(s). Red seats are already booked.
                     </div>
 
                     <div class="seat-layout-wrapper mb-3">
@@ -512,10 +508,18 @@ function format_date_confirm($date)
                                 <div class="selected-seat-display">
                                     <strong>Selected Seat(s):</strong>
                                     <div id="selectedSeatText" class="mt-2">None selected</div>
+
+                                    <hr class="my-2">
+
+                                    <strong>Total Amount:</strong>
+                                    <div id="dynamicTotalAmount" class="mt-2 dynamic-total">
+                                        ₱0.00
+                                    </div>
                                 </div>
 
                                 <div class="mt-3 text-muted small">
-                                    Required seat(s): <strong><?php echo $passengers; ?></strong>
+                                    Fare per seat:
+                                    <strong>₱<?php echo number_format((float)$schedule['fare'], 2); ?></strong>
                                 </div>
                             </div>
                         </div>
@@ -654,7 +658,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const passengerPhone = <?php echo json_encode($user_phone); ?>;
     const passengerEmail = <?php echo json_encode($user_email); ?>;
 
-    const maxPassengers = <?php echo json_encode((int)$passengers); ?>;
+    const maxPassengers = <?php echo json_encode((int)$schedule['available_seats']); ?>;
+    const farePerSeat = <?php echo json_encode((float)$schedule['fare']); ?>;
     const busCapacity = <?php echo json_encode((int)$schedule['capacity']); ?>;
     const bookedSeats = <?php echo json_encode(array_values($bookedSeats)); ?>;
 
@@ -716,7 +721,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         seatBtn.classList.remove('selected');
                     } else {
                         if (selectedSeats.length >= maxPassengers) {
-                            showBookingPopup('error', 'You can only select ' + maxPassengers + ' seat(s).');
+                            showBookingPopup('error', 'You can only select up to ' + maxPassengers + ' available seat(s).');
                             return;
                         }
 
@@ -736,17 +741,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function updateSelectedSeatText() {
         const selectedSeatText = document.getElementById('selectedSeatText');
+        const dynamicTotalAmount = document.getElementById('dynamicTotalAmount');
+        const topTotalAmount = document.getElementById('topTotalAmount');
 
         if (selectedSeats.length === 0) {
             selectedSeatText.innerText = 'None selected';
+            dynamicTotalAmount.innerText = '₱0.00';
+            topTotalAmount.innerText = '₱0.00';
         } else {
             selectedSeatText.innerText = selectedSeats.join(', ');
+
+            const totalAmount = selectedSeats.length * farePerSeat;
+            const formattedTotal = '₱' + totalAmount.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+
+            dynamicTotalAmount.innerText = formattedTotal;
+            topTotalAmount.innerText = formattedTotal;
         }
     }
 
     function getSelectedSeats() {
-        if (selectedSeats.length < maxPassengers) {
-            showBookingPopup('error', 'Please select ' + maxPassengers + ' seat(s).');
+        if (selectedSeats.length === 0) {
+            showBookingPopup('error', 'Please select at least one seat.');
             return null;
         }
 
