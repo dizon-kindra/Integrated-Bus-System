@@ -1,5 +1,4 @@
 <?php
-require_once(__DIR__ . '/inc/db_config.php');
 require_once(__DIR__ . '/inc/essentials.php');
 
 if (session_status() === PHP_SESSION_NONE) {
@@ -21,65 +20,40 @@ if ($schedule_id <= 0) {
     die("Invalid booking request.");
 }
 
-$query = "
-    SELECT 
-        s.schedule_id,
-        s.departure_date,
-        s.departure_time,
-        s.arrival_time,
-        s.fare,
-        s.available_seats,
-        s.trip_status,
+$api_url = "http://localhost:3000/api/booking-details?schedule_id=" . urlencode($schedule_id);
 
-        b.bus_id,
-        b.bus_number,
-        b.plate_number,
-        b.bus_type,
-        b.capacity,
+$api_response = @file_get_contents($api_url);
 
-        r.route_id,
-        r.origin,
-        r.destination,
-        r.estimated_duration
-    FROM schedules s
-    INNER JOIN buses b ON s.bus_id = b.bus_id
-    INNER JOIN routes r ON s.route_id = r.route_id
-    WHERE s.schedule_id = ?
-    LIMIT 1
-";
-
-$result = select($query, [$schedule_id], 'i');
-
-if (!$result || mysqli_num_rows($result) == 0) {
-    die("Schedule not found.");
+if ($api_response === false) {
+    die("
+        <div style='font-family: Arial, sans-serif; text-align:center; margin-top:80px;'>
+            <h2 style='color:#dc3545;'>Unable to Load Booking Details</h2>
+            <p>Please make sure the Node API is running.</p>
+            <a href='bus.php?view=all' style='display:inline-block; margin-top:15px; padding:10px 20px; background:#172233; color:white; text-decoration:none; border-radius:6px;'>Back to Trips</a>
+        </div>
+    ");
 }
 
-$schedule = mysqli_fetch_assoc($result);
+$booking_details_response = json_decode($api_response, true);
 
-if (strtolower($schedule['trip_status']) == 'cancelled') {
-    die("This trip is no longer available.");
+if (
+    !$booking_details_response ||
+    !isset($booking_details_response['success']) ||
+    $booking_details_response['success'] !== true
+) {
+    $message = $booking_details_response['message'] ?? 'Unable to load booking details.';
+
+    die("
+        <div style='font-family: Arial, sans-serif; text-align:center; margin-top:80px;'>
+            <h2 style='color:#AD8B3A;'>Booking Not Available</h2>
+            <p>" . htmlspecialchars($message) . "</p>
+            <a href='bus.php?view=all' style='display:inline-block; margin-top:15px; padding:10px 20px; background:#172233; color:white; text-decoration:none; border-radius:6px;'>Back to Trips</a>
+        </div>
+    ");
 }
 
-if ((int)$schedule['available_seats'] <= 0) {
-    die("No available seats for this trip.");
-}
-
-$bookedSeats = [];
-
-$booked_query = "
-    SELECT seat_no 
-    FROM bookings 
-    WHERE schedule_id = ? 
-    AND reservation_status != 'Cancelled'
-";
-
-$booked_result = select($booked_query, [$schedule_id], 'i');
-
-if ($booked_result) {
-    while ($row = mysqli_fetch_assoc($booked_result)) {
-        $bookedSeats[] = (int)$row['seat_no'];
-    }
-}
+$schedule = $booking_details_response['schedule'];
+$bookedSeats = $booking_details_response['bookedSeats'] ?? [];
 
 function format_time_confirm($time)
 {
