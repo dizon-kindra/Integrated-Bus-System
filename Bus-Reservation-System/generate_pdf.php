@@ -1,14 +1,20 @@
 <?php
-require('admin/inc/db_config.php');
-require('admin/inc/essentials.php');
+require_once(__DIR__ . '/inc/db_config.php');
+require_once(__DIR__ . '/inc/essentials.php');
 
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 if (!(isset($_SESSION['login']) && $_SESSION['login'] == true)) {
     redirect('index.php');
 }
 
 $user_id = $_SESSION['user_id'] ?? $_SESSION['id'] ?? 0;
+
+if ($user_id == 0) {
+    redirect('logout.php');
+}
 
 $booking_id = 0;
 
@@ -73,6 +79,28 @@ if (mysqli_num_rows($result) == 0) {
 }
 
 $data = mysqli_fetch_assoc($result);
+
+/*
+    Ticket Rule:
+    Passenger can only print/view official ticket after admin confirms payment.
+    Required:
+    payment_status = Paid
+    reservation_status = Confirmed
+*/
+if (
+    strtolower($data['payment_status'] ?? '') !== 'paid' ||
+    strtolower($data['reservation_status'] ?? '') !== 'confirmed'
+) {
+    die("
+        <div style='font-family: Arial, sans-serif; text-align:center; margin-top:80px;'>
+            <h2 style='color:#AD8B3A;'>Ticket Not Available Yet</h2>
+            <p>Your ticket can only be printed after the admin confirms your payment.</p>
+            <p><strong>Current Payment Status:</strong> " . htmlspecialchars($data['payment_status'] ?? 'Pending') . "</p>
+            <p><strong>Current Reservation Status:</strong> " . htmlspecialchars($data['reservation_status'] ?? 'Pending') . "</p>
+            <a href='bookings.php' style='display:inline-block; margin-top:15px; padding:10px 20px; background:#172233; color:white; text-decoration:none; border-radius:6px;'>Back to My Bookings</a>
+        </div>
+    ");
+}
 
 function format_time_ticket($time)
 {
@@ -422,6 +450,8 @@ function status_badge_class($status)
     </div>
 
     <div class="ticket-footer">
+        This ticket is valid because the payment has been confirmed by the admin.
+        <br>
         Please present this ticket or booking code at the terminal before departure.
         <br>
         Generated on <?php echo date("F d, Y | h:i A"); ?>
