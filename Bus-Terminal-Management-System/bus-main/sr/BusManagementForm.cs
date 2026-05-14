@@ -1,20 +1,24 @@
 ﻿using System;
 using System.Data;
+using System.Net.Http;
+using System.Text;
 using System.Windows.Forms;
-using MySql.Data.MySqlClient;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace sr
 {
     public partial class BusManagementForm : Form
     {
-        private string connStr = "server=localhost;user=root;password=;database=sr_db;";
+        private readonly HttpClient client = new HttpClient();
+        private readonly string apiBaseUrl = "http://localhost:3000/api";
 
         public BusManagementForm()
         {
             InitializeComponent();
         }
 
-        private void BusManagementForm_Load(object sender, EventArgs e)
+        private async void BusManagementForm_Load(object sender, EventArgs e)
         {
             cmbBusType.Items.Clear();
             cmbBusType.Items.Add("Airconditioned");
@@ -36,53 +40,72 @@ namespace sr
                 cmbStatus.SelectedIndex = 0;
             }
 
-            LoadBuses();
+            await LoadBuses();
         }
 
-        private void LoadBuses()
+        private async System.Threading.Tasks.Task LoadBuses()
         {
             try
             {
-                using (MySqlConnection conn = new MySqlConnection(connStr))
+                HttpResponseMessage response = await client.GetAsync(apiBaseUrl + "/admin/buses");
+                string responseBody = await response.Content.ReadAsStringAsync();
+
+                JObject result = JObject.Parse(responseBody);
+
+                if (!response.IsSuccessStatusCode || result["success"]?.ToObject<bool>() != true)
                 {
-                    conn.Open();
+                    string message = result["message"]?.ToString() ?? "Failed to load buses.";
+                    MessageBox.Show(message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
 
-                    string query = @"
-                        SELECT 
-                            bus_id,
-                            bus_number,
-                            plate_number,
-                            capacity,
-                            bus_type,
-                            status
-                        FROM buses
-                        ORDER BY bus_id DESC";
+                JArray buses = (JArray)result["buses"];
 
-                    MySqlDataAdapter adapter = new MySqlDataAdapter(query, conn);
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
+                DataTable dt = new DataTable();
+                dt.Columns.Add("bus_id", typeof(int));
+                dt.Columns.Add("bus_number", typeof(string));
+                dt.Columns.Add("plate_number", typeof(string));
+                dt.Columns.Add("capacity", typeof(int));
+                dt.Columns.Add("bus_type", typeof(string));
+                dt.Columns.Add("status", typeof(string));
 
-                    dgvBuses.DataSource = dt;
+                foreach (JObject bus in buses)
+                {
+                    dt.Rows.Add(
+                        bus["bus_id"]?.ToObject<int>() ?? 0,
+                        bus["bus_number"]?.ToString() ?? "",
+                        bus["plate_number"]?.ToString() ?? "",
+                        bus["capacity"]?.ToObject<int>() ?? 0,
+                        bus["bus_type"]?.ToString() ?? "",
+                        bus["status"]?.ToString() ?? ""
+                    );
+                }
 
-                    if (dgvBuses.Columns.Count > 0)
-                    {
-                        dgvBuses.Columns["bus_id"].HeaderText = "Bus ID";
-                        dgvBuses.Columns["bus_number"].HeaderText = "Bus Number";
-                        dgvBuses.Columns["plate_number"].HeaderText = "Plate Number";
-                        dgvBuses.Columns["capacity"].HeaderText = "Capacity";
-                        dgvBuses.Columns["bus_type"].HeaderText = "Bus Type";
-                        dgvBuses.Columns["status"].HeaderText = "Status";
+                dgvBuses.DataSource = dt;
 
-                        dgvBuses.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-                        dgvBuses.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-                        dgvBuses.MultiSelect = false;
-                        dgvBuses.ReadOnly = true;
-                    }
+                if (dgvBuses.Columns.Count > 0)
+                {
+                    dgvBuses.Columns["bus_id"].HeaderText = "Bus ID";
+                    dgvBuses.Columns["bus_number"].HeaderText = "Bus Number";
+                    dgvBuses.Columns["plate_number"].HeaderText = "Plate Number";
+                    dgvBuses.Columns["capacity"].HeaderText = "Capacity";
+                    dgvBuses.Columns["bus_type"].HeaderText = "Bus Type";
+                    dgvBuses.Columns["status"].HeaderText = "Status";
+
+                    dgvBuses.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+                    dgvBuses.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+                    dgvBuses.MultiSelect = false;
+                    dgvBuses.ReadOnly = true;
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error loading buses: " + ex.Message);
+                MessageBox.Show(
+                    "Error loading buses from API.\n\nMake sure Node API is running.\n\n" + ex.Message,
+                    "API Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
             }
         }
 
@@ -162,7 +185,7 @@ namespace sr
             return true;
         }
 
-        private void btnAdd_Click(object sender, EventArgs e)
+        private async void btnAdd_Click(object sender, EventArgs e)
         {
             if (!ValidateFields())
             {
@@ -171,51 +194,47 @@ namespace sr
 
             try
             {
-                using (MySqlConnection conn = new MySqlConnection(connStr))
+                var busData = new
                 {
-                    conn.Open();
+                    bus_number = txtBusNumber.Text.Trim(),
+                    plate_number = txtPlateNumber.Text.Trim(),
+                    capacity = Convert.ToInt32(txtCapacity.Text.Trim()),
+                    bus_type = cmbBusType.Text.Trim(),
+                    status = cmbStatus.Text.Trim()
+                };
 
-                    string query = @"
-                        INSERT INTO buses 
-                        (
-                            bus_number, 
-                            plate_number, 
-                            capacity, 
-                            bus_type, 
-                            status
-                        )
-                        VALUES
-                        (
-                            @bus_number, 
-                            @plate_number, 
-                            @capacity, 
-                            @bus_type, 
-                            @status
-                        )";
+                string json = JsonConvert.SerializeObject(busData);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@bus_number", txtBusNumber.Text.Trim());
-                        cmd.Parameters.AddWithValue("@plate_number", txtPlateNumber.Text.Trim());
-                        cmd.Parameters.AddWithValue("@capacity", Convert.ToInt32(txtCapacity.Text.Trim()));
-                        cmd.Parameters.AddWithValue("@bus_type", cmbBusType.Text.Trim());
-                        cmd.Parameters.AddWithValue("@status", cmbStatus.Text.Trim());
+                HttpResponseMessage response = await client.PostAsync(apiBaseUrl + "/admin/buses", content);
+                string responseBody = await response.Content.ReadAsStringAsync();
 
-                        cmd.ExecuteNonQuery();
-                    }
+                JObject result = JObject.Parse(responseBody);
+
+                if (response.IsSuccessStatusCode && result["success"]?.ToObject<bool>() == true)
+                {
+                    MessageBox.Show("Bus added successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    await LoadBuses();
+                    ClearFields();
                 }
-
-                MessageBox.Show("Bus added successfully.");
-                LoadBuses();
-                ClearFields();
+                else
+                {
+                    string message = result["message"]?.ToString() ?? "Error adding bus.";
+                    MessageBox.Show(message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error adding bus: " + ex.Message);
+                MessageBox.Show(
+                    "Error adding bus through API.\n\n" + ex.Message,
+                    "API Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
             }
         }
 
-        private void btnUpdate_Click(object sender, EventArgs e)
+        private async void btnUpdate_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtBusID.Text))
             {
@@ -230,43 +249,49 @@ namespace sr
 
             try
             {
-                using (MySqlConnection conn = new MySqlConnection(connStr))
+                int busId = Convert.ToInt32(txtBusID.Text.Trim());
+
+                var busData = new
                 {
-                    conn.Open();
+                    bus_number = txtBusNumber.Text.Trim(),
+                    plate_number = txtPlateNumber.Text.Trim(),
+                    capacity = Convert.ToInt32(txtCapacity.Text.Trim()),
+                    bus_type = cmbBusType.Text.Trim(),
+                    status = cmbStatus.Text.Trim()
+                };
 
-                    string query = @"
-                        UPDATE buses SET
-                            bus_number = @bus_number,
-                            plate_number = @plate_number,
-                            capacity = @capacity,
-                            bus_type = @bus_type,
-                            status = @status
-                        WHERE bus_id = @bus_id";
+                string json = JsonConvert.SerializeObject(busData);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@bus_id", Convert.ToInt32(txtBusID.Text.Trim()));
-                        cmd.Parameters.AddWithValue("@bus_number", txtBusNumber.Text.Trim());
-                        cmd.Parameters.AddWithValue("@plate_number", txtPlateNumber.Text.Trim());
-                        cmd.Parameters.AddWithValue("@capacity", Convert.ToInt32(txtCapacity.Text.Trim()));
-                        cmd.Parameters.AddWithValue("@bus_type", cmbBusType.Text.Trim());
-                        cmd.Parameters.AddWithValue("@status", cmbStatus.Text.Trim());
+                HttpResponseMessage response = await client.PutAsync(apiBaseUrl + "/admin/buses/" + busId, content);
+                string responseBody = await response.Content.ReadAsStringAsync();
 
-                        cmd.ExecuteNonQuery();
-                    }
+                JObject result = JObject.Parse(responseBody);
+
+                if (response.IsSuccessStatusCode && result["success"]?.ToObject<bool>() == true)
+                {
+                    MessageBox.Show("Bus updated successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    await LoadBuses();
+                    ClearFields();
                 }
-
-                MessageBox.Show("Bus updated successfully.");
-                LoadBuses();
-                ClearFields();
+                else
+                {
+                    string message = result["message"]?.ToString() ?? "Error updating bus.";
+                    MessageBox.Show(message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error updating bus: " + ex.Message);
+                MessageBox.Show(
+                    "Error updating bus through API.\n\n" + ex.Message,
+                    "API Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
             }
         }
 
-        private void btnDeactivate_Click(object sender, EventArgs e)
+        private async void btnDeactivate_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtBusID.Text))
             {
@@ -274,40 +299,59 @@ namespace sr
                 return;
             }
 
-            DialogResult result = MessageBox.Show(
+            DialogResult resultConfirm = MessageBox.Show(
                 "Are you sure you want to deactivate this bus?",
                 "Confirm Deactivate",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question
             );
 
-            if (result == DialogResult.No)
+            if (resultConfirm == DialogResult.No)
             {
                 return;
             }
 
             try
             {
-                using (MySqlConnection conn = new MySqlConnection(connStr))
+                int busId = Convert.ToInt32(txtBusID.Text.Trim());
+
+                var busData = new
                 {
-                    conn.Open();
+                    bus_number = txtBusNumber.Text.Trim(),
+                    plate_number = txtPlateNumber.Text.Trim(),
+                    capacity = Convert.ToInt32(txtCapacity.Text.Trim()),
+                    bus_type = cmbBusType.Text.Trim(),
+                    status = "Inactive"
+                };
 
-                    string query = "UPDATE buses SET status = 'Inactive' WHERE bus_id = @bus_id";
+                string json = JsonConvert.SerializeObject(busData);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@bus_id", Convert.ToInt32(txtBusID.Text.Trim()));
-                        cmd.ExecuteNonQuery();
-                    }
+                HttpResponseMessage response = await client.PutAsync(apiBaseUrl + "/admin/buses/" + busId, content);
+                string responseBody = await response.Content.ReadAsStringAsync();
+
+                JObject result = JObject.Parse(responseBody);
+
+                if (response.IsSuccessStatusCode && result["success"]?.ToObject<bool>() == true)
+                {
+                    MessageBox.Show("Bus deactivated successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    await LoadBuses();
+                    ClearFields();
                 }
-
-                MessageBox.Show("Bus deactivated successfully.");
-                LoadBuses();
-                ClearFields();
+                else
+                {
+                    string message = result["message"]?.ToString() ?? "Error deactivating bus.";
+                    MessageBox.Show(message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error deactivating bus: " + ex.Message);
+                MessageBox.Show(
+                    "Error deactivating bus through API.\n\n" + ex.Message,
+                    "API Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
             }
         }
 
