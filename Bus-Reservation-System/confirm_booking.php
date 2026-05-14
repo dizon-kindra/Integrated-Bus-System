@@ -182,6 +182,90 @@ function format_date_confirm($date)
             padding: 18px;
         }
 
+        .seat-layout-wrapper {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        .seat-map {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+            gap: 12px;
+            max-width: 760px;
+        }
+
+        .seat-btn {
+            height: 52px;
+            border-radius: 12px;
+            border: 2px solid #ced4da;
+            background: #fff;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .seat-btn:hover {
+            border-color: #0d6efd;
+            transform: translateY(-2px);
+        }
+
+        .seat-btn.selected {
+            background: #0d6efd;
+            border-color: #0d6efd;
+            color: #fff;
+        }
+
+        .seat-btn.booked {
+            background: #dc3545;
+            border-color: #dc3545;
+            color: #fff;
+            cursor: not-allowed;
+            opacity: 0.85;
+        }
+
+        .seat-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 14px;
+        }
+
+        .legend-box {
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+
+        .legend-available {
+            background: #fff;
+        }
+
+        .legend-selected {
+            background: #0d6efd;
+        }
+
+        .legend-booked {
+            background: #dc3545;
+        }
+
+        .selected-seat-display {
+            background: #eef6ff;
+            border-left: 5px solid #0d6efd;
+            padding: 12px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
         .d-none {
             display: none !important;
         }
@@ -207,7 +291,7 @@ function format_date_confirm($date)
 
 <?php require('inc/header.php'); ?>
 
-<div class="container">
+<div class="container-fluid px-lg-5 px-md-4 px-3">
     <div class="row">
         <div class="col-12 my-5 px-4">
             <h2 class="fw-bold h-font">CONFIRM BOOKING</h2>
@@ -220,7 +304,7 @@ function format_date_confirm($date)
             </div>
         </div>
 
-        <div class="col-lg-10 col-md-11 mx-auto mb-5">
+        <div class="col-lg-12 col-md-12 mx-auto mb-5">
             <div class="card border-0 shadow summary-card">
                 <div class="summary-header">
                     <h4 class="mb-1 fw-bold">Booking Summary</h4>
@@ -229,7 +313,7 @@ function format_date_confirm($date)
 
                 <div class="summary-body">
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-lg-5 col-md-6">
                             <h5 class="fw-bold mb-3">Passenger Details</h5>
 
                             <div class="info-box">
@@ -253,46 +337,67 @@ function format_date_confirm($date)
                             </div>
                         </div>
 
-                        <div class="col-md-6">
+                        <div class="col-lg-7 col-md-6">
                             <h5 class="fw-bold mb-3">Trip Details</h5>
 
-                            <div class="info-box">
-                                <div class="summary-label">Route</div>
-                                <div class="summary-value">
-                                    <?php echo htmlspecialchars($schedule['origin']); ?> → <?php echo htmlspecialchars($schedule['destination']); ?>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="info-box">
+                                        <div class="summary-label">Route</div>
+                                        <div class="summary-value">
+                                            <?php echo htmlspecialchars($schedule['origin']); ?> → <?php echo htmlspecialchars($schedule['destination']); ?>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div class="info-box">
-                                <div class="summary-label">Bus</div>
-                                <div class="summary-value">
-                                    <?php echo htmlspecialchars($schedule['bus_number']); ?> |
-                                    <?php echo htmlspecialchars($schedule['bus_type']); ?>
+                                <div class="col-md-6">
+                                    <div class="info-box">
+                                        <div class="summary-label">Bus</div>
+                                        <div class="summary-value">
+                                            <?php echo htmlspecialchars($schedule['bus_number']); ?> |
+                                            <?php echo htmlspecialchars($schedule['bus_type']); ?>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div class="info-box">
-                                <div class="summary-label">Travel Date and Time</div>
-                                <div class="summary-value">
-                                    <?php echo format_date_confirm($schedule['departure_date']); ?>
-                                    |
-                                    <?php echo format_time_confirm($schedule['departure_time']); ?>
-                                    -
-                                    <?php echo format_time_confirm($schedule['arrival_time']); ?>
+                                <div class="col-md-6">
+                                    <div class="info-box">
+                                        <div class="summary-label">Travel Date and Time</div>
+                                        <div class="summary-value">
+                                            <?php echo format_date_confirm($schedule['departure_date']); ?>
+                                            |
+                                            <?php echo format_time_confirm($schedule['departure_time']); ?>
+                                            -
+                                            <?php echo format_time_confirm($schedule['arrival_time']); ?>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div class="info-box">
-                                <div class="summary-label">Fare</div>
-                                <div class="summary-value">
-                                    ₱<?php echo number_format((float)$schedule['fare'], 2); ?> x <?php echo $passengers; ?> passenger(s)
+                                <div class="col-md-6">
+                                    <div class="info-box">
+                                        <div class="summary-label">Fare</div>
+                                        <div class="summary-value">
+                                            ₱<?php echo number_format((float)$schedule['fare'], 2); ?> x <?php echo $passengers; ?> passenger(s)
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div class="info-box">
-                                <div class="summary-label">Total Amount</div>
-                                <div class="summary-value fs-5 text-success">
-                                    ₱<?php echo number_format($total_amount, 2); ?>
+                                <div class="col-md-6">
+                                    <div class="info-box">
+                                        <div class="summary-label">Total Amount</div>
+                                        <div class="summary-value fs-5 text-success">
+                                            ₱<?php echo number_format($total_amount, 2); ?>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="info-box">
+                                        <div class="summary-label">Available Seats</div>
+                                        <div class="summary-value">
+                                            <?php echo (int)$schedule['available_seats']; ?> seat(s)
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -303,26 +408,43 @@ function format_date_confirm($date)
                     <h5 class="fw-bold mb-3">Seat Selection</h5>
 
                     <div class="seat-note mb-3">
-                        Please select <?php echo $passengers; ?> seat(s). Already booked seats are not shown.
+                        Please select <?php echo $passengers; ?> seat(s). Red seats are already booked.
                     </div>
 
-                    <div class="row">
-                        <?php for ($i = 1; $i <= $passengers; $i++) { ?>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold">Seat for Passenger <?php echo $i; ?></label>
-                                <select class="form-control shadow-none seat-select" required>
-                                    <option value="">Select Seat</option>
-
-                                    <?php
-                                    for ($seat = 1; $seat <= (int)$schedule['capacity']; $seat++) {
-                                        if (!in_array($seat, $bookedSeats)) {
-                                            echo '<option value="' . $seat . '">Seat ' . $seat . '</option>';
-                                        }
-                                    }
-                                    ?>
-                                </select>
+                    <div class="seat-layout-wrapper mb-3">
+                        <div class="seat-legend">
+                            <div class="legend-item">
+                                <div class="legend-box legend-available"></div>
+                                <span>Available</span>
                             </div>
-                        <?php } ?>
+
+                            <div class="legend-item">
+                                <div class="legend-box legend-selected"></div>
+                                <span>Selected</span>
+                            </div>
+
+                            <div class="legend-item">
+                                <div class="legend-box legend-booked"></div>
+                                <span>Not Available</span>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-lg-8 col-md-12 mb-3">
+                                <div id="seatMap" class="seat-map"></div>
+                            </div>
+
+                            <div class="col-lg-4 col-md-12">
+                                <div class="selected-seat-display">
+                                    <strong>Selected Seat(s):</strong>
+                                    <div id="selectedSeatText" class="mt-2">None selected</div>
+                                </div>
+
+                                <div class="mt-3 text-muted small">
+                                    Required seat(s): <strong><?php echo $passengers; ?></strong>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <hr class="my-4">
@@ -458,6 +580,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const passengerPhone = <?php echo json_encode($user_phone); ?>;
     const passengerEmail = <?php echo json_encode($user_email); ?>;
 
+    const maxPassengers = <?php echo json_encode((int)$passengers); ?>;
+    const busCapacity = <?php echo json_encode((int)$schedule['capacity']); ?>;
+    const bookedSeats = <?php echo json_encode(array_values($bookedSeats)); ?>;
+
+    let selectedSeats = [];
+
     function showBookingPopup(type, message, callback = null) {
         const modalEl = document.getElementById('bookingMessageModal');
         const icon = document.getElementById('bookingMessageIcon');
@@ -487,6 +615,65 @@ document.addEventListener('DOMContentLoaded', function () {
         };
     }
 
+    function renderSeatMap() {
+        const seatMap = document.getElementById('seatMap');
+        seatMap.innerHTML = '';
+
+        for (let seat = 1; seat <= busCapacity; seat++) {
+            const seatBtn = document.createElement('button');
+            seatBtn.type = 'button';
+            seatBtn.innerText = seat;
+            seatBtn.className = 'seat-btn';
+
+            if (bookedSeats.includes(seat)) {
+                seatBtn.classList.add('booked');
+                seatBtn.disabled = true;
+            } else {
+                seatBtn.addEventListener('click', function () {
+                    const seatValue = String(seat);
+
+                    if (selectedSeats.includes(seatValue)) {
+                        selectedSeats = selectedSeats.filter(s => s !== seatValue);
+                        seatBtn.classList.remove('selected');
+                    } else {
+                        if (selectedSeats.length >= maxPassengers) {
+                            showBookingPopup('error', 'You can only select ' + maxPassengers + ' seat(s).');
+                            return;
+                        }
+
+                        selectedSeats.push(seatValue);
+                        seatBtn.classList.add('selected');
+                    }
+
+                    updateSelectedSeatText();
+                });
+            }
+
+            seatMap.appendChild(seatBtn);
+        }
+
+        updateSelectedSeatText();
+    }
+
+    function updateSelectedSeatText() {
+        const selectedSeatText = document.getElementById('selectedSeatText');
+
+        if (selectedSeats.length === 0) {
+            selectedSeatText.innerText = 'None selected';
+        } else {
+            selectedSeatText.innerText = selectedSeats.join(', ');
+        }
+    }
+
+    function getSelectedSeats() {
+        if (selectedSeats.length < maxPassengers) {
+            showBookingPopup('error', 'Please select ' + maxPassengers + ' seat(s).');
+            return null;
+        }
+
+        return selectedSeats;
+    }
+
     paymentMethod.addEventListener('change', function () {
         if (this.value === 'Pay at Terminal') {
             onlinePaymentBox.classList.add('d-none');
@@ -505,31 +692,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 "<strong>Card / Bank Payment:</strong> Enter your payment details. Once the simulated payment is successful, your booking will be confirmed and your ticket will be available immediately.";
         }
     });
-
-    function getSelectedSeats() {
-        const selectedSeats = [];
-        const seatSelects = document.querySelectorAll('.seat-select');
-
-        for (let i = 0; i < seatSelects.length; i++) {
-            const seatValue = seatSelects[i].value;
-
-            if (seatValue === '') {
-                showBookingPopup('error', 'Please select all required seats.');
-                seatSelects[i].focus();
-                return null;
-            }
-
-            if (selectedSeats.includes(seatValue)) {
-                showBookingPopup('error', 'Duplicate seat selected. Please choose different seats.');
-                seatSelects[i].focus();
-                return null;
-            }
-
-            selectedSeats.push(seatValue);
-        }
-
-        return selectedSeats;
-    }
 
     function validateOnlinePayment() {
         if (paymentMethod.value === 'Pay at Terminal') {
@@ -570,9 +732,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     confirmBookingBtn.addEventListener('click', function () {
-        const selectedSeats = getSelectedSeats();
+        const seatsToSubmit = getSelectedSeats();
 
-        if (selectedSeats === null) {
+        if (seatsToSubmit === null) {
             return;
         }
 
@@ -598,7 +760,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 passenger_name: passengerName,
                 phone: passengerPhone,
                 email: passengerEmail,
-                seats: selectedSeats,
+                seats: seatsToSubmit,
                 payment_method: selectedPaymentMethod,
                 reference_no: generatedReferenceNo
             })
@@ -626,6 +788,8 @@ document.addEventListener('DOMContentLoaded', function () {
             bookingLoader.classList.add('d-none');
         });
     });
+
+    renderSeatMap();
 });
 </script>
 
