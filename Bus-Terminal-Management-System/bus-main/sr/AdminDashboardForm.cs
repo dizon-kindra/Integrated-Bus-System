@@ -1,13 +1,16 @@
 ﻿using System;
 using System.Drawing;
+using System.Net.Http;
+using System.Threading.Tasks;
 using System.Windows.Forms;
-using MySql.Data.MySqlClient;
+using Newtonsoft.Json.Linq;
 
 namespace sr
 {
     public partial class AdminDashboardForm : Form
     {
-        private string connectionString = "server=localhost;database=sr_db;uid=root;pwd=;";
+        private readonly HttpClient client = new HttpClient();
+        private readonly string apiBaseUrl = "http://localhost:3000/api";
 
         private Panel panelSidebar;
         private Panel panelMain;
@@ -22,8 +25,12 @@ namespace sr
         private Button btnBusManagement;
         private Button btnScheduleManagement;
         private Button btnReservationManagement;
+
+        // Hidden duplicate modules
         private Button btnPaymentConfirmation;
         private Button btnCheckInBoarding;
+
+        // Reports remains visible
         private Button btnReports;
         private Button btnLogout;
 
@@ -31,7 +38,7 @@ namespace sr
         {
             InitializeComponent();
             CreateDashboardDesign();
-            ShowDashboardHome();
+            _ = ShowDashboardHomeAsync();
         }
 
         private void AdminDashboardForm_Load(object sender, EventArgs e)
@@ -110,15 +117,19 @@ namespace sr
             btnReservationManagement.Click += btnReservationManagement_Click;
             panelSidebar.Controls.Add(btnReservationManagement);
 
+            // Keep these as hidden backup buttons only
             btnPaymentConfirmation = CreateSidebarButton("Payment Confirmation", startY + (buttonHeight + buttonGap) * 5);
             btnPaymentConfirmation.Click += btnPaymentConfirmation_Click;
+            btnPaymentConfirmation.Visible = false;
             panelSidebar.Controls.Add(btnPaymentConfirmation);
 
             btnCheckInBoarding = CreateSidebarButton("Check-in / Boarding", startY + (buttonHeight + buttonGap) * 6);
             btnCheckInBoarding.Click += btnCheckInBoarding_Click;
+            btnCheckInBoarding.Visible = false;
             panelSidebar.Controls.Add(btnCheckInBoarding);
 
-            btnReports = CreateSidebarButton("Reports", startY + (buttonHeight + buttonGap) * 7);
+            // Reports moved up because Payment Confirmation and Check-in / Boarding are hidden
+            btnReports = CreateSidebarButton("Reports", startY + (buttonHeight + buttonGap) * 5);
             btnReports.Click += btnReports_Click;
             panelSidebar.Controls.Add(btnReports);
 
@@ -254,85 +265,94 @@ namespace sr
             childForm.Show();
         }
 
-        // ================= DATABASE HELPERS =================
+        // ================= API HELPERS =================
 
-        private int GetCount(string query)
+        private async Task<JArray> GetArrayFromApi(string endpoint, string arrayName)
         {
-            int count = 0;
+            HttpResponseMessage response = await client.GetAsync(apiBaseUrl + endpoint);
+            string responseBody = await response.Content.ReadAsStringAsync();
 
-            try
+            JObject result = JObject.Parse(responseBody);
+
+            if (!response.IsSuccessStatusCode || result["success"]?.ToObject<bool>() != true)
             {
-                using (MySqlConnection conn = new MySqlConnection(connectionString))
-                {
-                    conn.Open();
-
-                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
-                    {
-                        object result = cmd.ExecuteScalar();
-
-                        if (result != null && result != DBNull.Value)
-                        {
-                            count = Convert.ToInt32(result);
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Dashboard count error: " + ex.Message);
+                string message = result["message"]?.ToString() ?? "API request failed.";
+                throw new Exception(message);
             }
 
-            return count;
-        }
-
-        private decimal GetDecimalValue(string query)
-        {
-            decimal value = 0;
-
-            try
-            {
-                using (MySqlConnection conn = new MySqlConnection(connectionString))
-                {
-                    conn.Open();
-
-                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
-                    {
-                        object result = cmd.ExecuteScalar();
-
-                        if (result != null && result != DBNull.Value)
-                        {
-                            value = Convert.ToDecimal(result);
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Dashboard revenue error: " + ex.Message);
-            }
-
-            return value;
+            return (JArray)result[arrayName];
         }
 
         // ================= DASHBOARD HOME =================
 
-        private void ShowDashboardHome()
+        private async Task ShowDashboardHomeAsync()
         {
             panelContent.Controls.Clear();
             lblPageTitle.Text = "Dashboard";
 
-            // ================= GET DATA FROM DATABASE =================
-            int totalRoutes = GetCount("SELECT COUNT(*) FROM routes");
-            int totalBuses = GetCount("SELECT COUNT(*) FROM buses");
-            int totalSchedules = GetCount("SELECT COUNT(*) FROM schedules");
-            int totalReservations = GetCount("SELECT COUNT(*) FROM bookings");
+            int totalRoutes = 0;
+            int totalBuses = 0;
+            int totalSchedules = 0;
+            int totalReservations = 0;
+            int pendingPayments = 0;
+            int paidBookings = 0;
+            int boardedPassengers = 0;
+            int cancelledBookings = 0;
+            decimal totalRevenue = 0;
 
-            int pendingPayments = GetCount("SELECT COUNT(*) FROM payments WHERE payment_status = 'Pending'");
-            int paidBookings = GetCount("SELECT COUNT(*) FROM payments WHERE payment_status = 'Paid'");
-            int boardedPassengers = GetCount("SELECT COUNT(*) FROM bookings WHERE boarding_status = 'Boarded'");
-            int cancelledBookings = GetCount("SELECT COUNT(*) FROM bookings WHERE reservation_status = 'Cancelled'");
+            try
+            {
+                JArray routes = await GetArrayFromApi("/admin/routes", "routes");
+                JArray buses = await GetArrayFromApi("/admin/buses", "buses");
+                JArray schedules = await GetArrayFromApi("/admin/schedules", "schedules");
+                JArray bookings = await GetArrayFromApi("/bookings", "bookings");
 
-            decimal totalRevenue = GetDecimalValue("SELECT IFNULL(SUM(amount), 0) FROM payments WHERE payment_status = 'Paid'");
+                totalRoutes = routes.Count;
+                totalBuses = buses.Count;
+                totalSchedules = schedules.Count;
+                totalReservations = bookings.Count;
+
+                foreach (JObject booking in bookings)
+                {
+                    string paymentStatus = booking["payment_status"]?.ToString() ?? "";
+                    string reservationStatus = booking["reservation_status"]?.ToString() ?? "";
+                    string boardingStatus = booking["boarding_status"]?.ToString() ?? "";
+
+                    if (paymentStatus == "Pending")
+                    {
+                        pendingPayments++;
+                    }
+
+                    if (paymentStatus == "Paid")
+                    {
+                        paidBookings++;
+                        totalRevenue += booking["total_amount"]?.ToObject<decimal>() ?? 0;
+                    }
+
+                    if (boardingStatus == "Boarded")
+                    {
+                        boardedPassengers++;
+                    }
+
+                    if (reservationStatus == "Cancelled")
+                    {
+                        cancelledBookings++;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "Dashboard API error:\n\n" + ex.Message +
+                    "\n\nPlease make sure:\n" +
+                    "1. XAMPP MySQL is running\n" +
+                    "2. Node API is running using npm start\n" +
+                    "3. http://localhost:3000/api/test is working",
+                    "API Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
+            }
 
             Label lblDescription = new Label();
             lblDescription.Text = "Monitor routes, buses, schedules, reservations, payments, boarding, and reports.";
@@ -353,13 +373,13 @@ namespace sr
             btnRefreshDashboard.FlatAppearance.BorderSize = 0;
             btnRefreshDashboard.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             btnRefreshDashboard.Cursor = Cursors.Hand;
-            btnRefreshDashboard.Click += (s, e) =>
+            btnRefreshDashboard.Click += async (s, e) =>
             {
-                ShowDashboardHome();
+                await ShowDashboardHomeAsync();
             };
             panelContent.Controls.Add(btnRefreshDashboard);
 
-            Panel cardRoutes = CreateStatCard("Total Routes", totalRoutes.ToString(), "Active terminal routes", new Point(25, 90), Color.FromArgb(52, 152, 219));
+            Panel cardRoutes = CreateStatCard("Total Routes", totalRoutes.ToString(), "Terminal routes", new Point(25, 90), Color.FromArgb(52, 152, 219));
             Panel cardBuses = CreateStatCard("Total Buses", totalBuses.ToString(), "Registered buses", new Point(285, 90), Color.FromArgb(46, 204, 113));
             Panel cardSchedules = CreateStatCard("Schedules", totalSchedules.ToString(), "Scheduled trips", new Point(545, 90), Color.FromArgb(155, 89, 182));
             Panel cardReservations = CreateStatCard("Reservations", totalReservations.ToString(), "Passenger bookings", new Point(805, 90), Color.FromArgb(241, 196, 15));
@@ -433,11 +453,11 @@ namespace sr
             panelQuick.Controls.Add(btnQuickSchedule);
 
             Button btnQuickPayment = CreateQuickButton("Confirm Payments", new Point(25, 125));
-            btnQuickPayment.Click += btnPaymentConfirmation_Click;
+            btnQuickPayment.Click += btnReservationManagement_Click;
             panelQuick.Controls.Add(btnQuickPayment);
 
             Button btnQuickBoarding = CreateQuickButton("Check-in / Boarding", new Point(250, 125));
-            btnQuickBoarding.Click += btnCheckInBoarding_Click;
+            btnQuickBoarding.Click += btnReservationManagement_Click;
             panelQuick.Controls.Add(btnQuickBoarding);
         }
 
@@ -508,9 +528,9 @@ namespace sr
             return btn;
         }
 
-        private void btnDashboard_Click(object sender, EventArgs e)
+        private async void btnDashboard_Click(object sender, EventArgs e)
         {
-            ShowDashboardHome();
+            await ShowDashboardHomeAsync();
         }
 
         private void btnRouteManagement_Click(object sender, EventArgs e)
@@ -533,14 +553,16 @@ namespace sr
             LoadFormInPanel(new ReservationManagementForm(), "Reservation Management");
         }
 
+        // Hidden backup only. Payment confirmation is now handled inside Reservation Management.
         private void btnPaymentConfirmation_Click(object sender, EventArgs e)
         {
-            LoadFormInPanel(new PaymentConfirmationForm(), "Payment Confirmation");
+            LoadFormInPanel(new ReservationManagementForm(), "Reservation Management");
         }
 
+        // Hidden backup only. Check-in and boarding are now handled inside Reservation Management.
         private void btnCheckInBoarding_Click(object sender, EventArgs e)
         {
-            LoadFormInPanel(new CheckInBoardingForm(), "Check-in / Boarding");
+            LoadFormInPanel(new ReservationManagementForm(), "Reservation Management");
         }
 
         private void btnReports_Click(object sender, EventArgs e)
