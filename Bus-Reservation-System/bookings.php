@@ -192,6 +192,10 @@ document.addEventListener('DOMContentLoaded', function () {
             return '<span class="badge bg-success badge-status">Paid</span>';
         }
 
+        if (value === 'pending verification') {
+            return '<span class="badge bg-info text-dark badge-status">Pending Verification</span>';
+        }
+
         if (value === 'cancelled' || value === 'canceled') {
             return '<span class="badge bg-danger badge-status">Cancelled</span>';
         }
@@ -239,6 +243,54 @@ document.addEventListener('DOMContentLoaded', function () {
         return '<span class="badge bg-info text-dark badge-status">' + status + '</span>';
     }
 
+    function getActionButton(booking) {
+        const paymentStatus = (booking.payment_status || 'Pending').toLowerCase();
+        const reservationStatus = (booking.reservation_status || 'Pending').toLowerCase();
+        const checkinStatus = (booking.checkin_status || 'Not Checked-in').toLowerCase();
+        const boardingStatus = (booking.boarding_status || 'Not Boarded').toLowerCase();
+
+        if (reservationStatus === 'cancelled' || paymentStatus === 'cancelled') {
+            return '<span class="badge bg-danger badge-status">Cancelled</span>';
+        }
+
+        /*
+            Ticket Rule:
+            Print Ticket is only available if:
+            payment_status = Paid
+            AND
+            reservation_status = Confirmed
+        */
+        if (paymentStatus === 'paid' && reservationStatus === 'confirmed') {
+            return (
+                '<a href="generate_pdf.php?booking_id=' + booking.booking_id + '" ' +
+                    'class="btn btn-dark btn-sm shadow-none action-btn">' +
+                    'Print Ticket' +
+                '</a>'
+            );
+        }
+
+        if (paymentStatus === 'pending verification') {
+            return '<span class="badge bg-info text-dark badge-status">Waiting for Admin Verification</span>';
+        }
+
+        if (
+            paymentStatus === 'pending' &&
+            reservationStatus === 'pending' &&
+            checkinStatus !== 'checked-in' &&
+            boardingStatus !== 'boarded'
+        ) {
+            return (
+                '<button class="btn btn-danger btn-sm shadow-none action-btn cancel-booking" ' +
+                    'data-booking-id="' + booking.booking_id + '">' +
+                    'Cancel' +
+                '</button>' +
+                '<br><small class="text-muted">Pay at Terminal</small>'
+            );
+        }
+
+        return '<span class="badge bg-secondary badge-status">Waiting for Confirmation</span>';
+    }
+
     function loadBookings() {
         bookingsLoader.classList.remove('d-none');
         bookingsTableWrapper.classList.add('d-none');
@@ -280,30 +332,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const checkinStatus = booking.checkin_status || 'Not Checked-in';
                     const boardingStatus = booking.boarding_status || 'Not Boarded';
 
-                    let actionBtn = '-';
-
-                    if (
-                        paymentStatus.toLowerCase() === 'pending' &&
-                        reservationStatus.toLowerCase() === 'pending' &&
-                        checkinStatus.toLowerCase() !== 'checked-in' &&
-                        boardingStatus.toLowerCase() !== 'boarded'
-                    ) {
-                        actionBtn =
-                            '<button class="btn btn-danger btn-sm shadow-none action-btn cancel-booking" ' +
-                                'data-booking-id="' + booking.booking_id + '">' +
-                                'Cancel' +
-                            '</button>';
-                    } else if (
-                        paymentStatus.toLowerCase() === 'paid' ||
-                        reservationStatus.toLowerCase() === 'confirmed' ||
-                        reservationStatus.toLowerCase() === 'completed'
-                    ) {
-                        actionBtn =
-                            '<a href="generate_pdf.php?booking_id=' + booking.booking_id + '" ' +
-                                'class="btn btn-dark btn-sm shadow-none action-btn">' +
-                                'Print Ticket' +
-                            '</a>';
-                    }
+                    const actionBtn = getActionButton(booking);
 
                     html +=
                         '<tr>' +
