@@ -72,7 +72,14 @@ async function createBooking(req, res, next) {
       seats = [],
     } = req.body;
 
-    if (!schedule_id || !passenger_name || !phone || !email || !Array.isArray(seats) || seats.length === 0) {
+    if (
+      !schedule_id ||
+      !passenger_name ||
+      !phone ||
+      !email ||
+      !Array.isArray(seats) ||
+      seats.length === 0
+    ) {
       return res.status(400).json({
         success: false,
         message: 'Missing required booking data.',
@@ -107,8 +114,13 @@ async function createBooking(req, res, next) {
     for (const rawSeatNo of seats) {
       const seatNo = Number(rawSeatNo);
 
+      if (!seatNo || seatNo <= 0) {
+        throw new Error('Invalid seat number.');
+      }
+
       const [existing] = await conn.query(
-        `SELECT booking_id FROM bookings
+        `SELECT booking_id 
+         FROM bookings
          WHERE schedule_id = ? 
          AND seat_no = ? 
          AND reservation_status != 'Cancelled'`,
@@ -318,9 +330,230 @@ async function cancelBooking(req, res, next) {
   }
 }
 
+async function confirmPayment(req, res, next) {
+  const conn = await db.getConnection();
+
+  try {
+    const bookingId = Number(req.params.id);
+
+    if (!bookingId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Booking ID is required.',
+      });
+    }
+
+    await conn.beginTransaction();
+
+    const [bookings] = await conn.query(
+      `SELECT booking_id, payment_status, reservation_status
+       FROM bookings
+       WHERE booking_id = ?
+       FOR UPDATE`,
+      [bookingId]
+    );
+
+    if (bookings.length === 0) {
+      throw new Error('Booking not found.');
+    }
+
+    const booking = bookings[0];
+
+    if (booking.reservation_status === 'Cancelled') {
+      throw new Error('Cannot confirm payment for a cancelled booking.');
+    }
+
+    if (booking.payment_status === 'Paid') {
+      throw new Error('This booking is already paid.');
+    }
+
+    await conn.query(
+      `UPDATE bookings
+       SET payment_status = 'Paid',
+           reservation_status = 'Confirmed'
+       WHERE booking_id = ?`,
+      [bookingId]
+    );
+
+    await conn.query(
+      `UPDATE payments
+       SET payment_status = 'Paid',
+           paid_at = NOW()
+       WHERE booking_id = ?`,
+      [bookingId]
+    );
+
+    await conn.commit();
+
+    res.json({
+      success: true,
+      message: 'Payment confirmed and booking approved successfully.',
+      booking_id: bookingId,
+      payment_status: 'Paid',
+      reservation_status: 'Confirmed',
+    });
+  } catch (err) {
+    await conn.rollback();
+
+    res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  } finally {
+    conn.release();
+  }
+}
+
+async function checkInBooking(req, res, next) {
+  const conn = await db.getConnection();
+
+  try {
+    const bookingId = Number(req.params.id);
+
+    if (!bookingId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Booking ID is required.',
+      });
+    }
+
+    await conn.beginTransaction();
+
+    const [bookings] = await conn.query(
+      `SELECT booking_id, payment_status, reservation_status, checkin_status, boarding_status
+       FROM bookings
+       WHERE booking_id = ?
+       FOR UPDATE`,
+      [bookingId]
+    );
+
+    if (bookings.length === 0) {
+      throw new Error('Booking not found.');
+    }
+
+    const booking = bookings[0];
+
+    if (booking.reservation_status === 'Cancelled') {
+      throw new Error('Cannot check-in a cancelled booking.');
+    }
+
+    if (booking.payment_status !== 'Paid' || booking.reservation_status !== 'Confirmed') {
+      throw new Error('Only paid and confirmed bookings can be checked in.');
+    }
+
+    if (booking.checkin_status === 'Checked-in') {
+      throw new Error('Passenger is already checked in.');
+    }
+
+    if (booking.boarding_status === 'Boarded') {
+      throw new Error('Passenger is already boarded.');
+    }
+
+    await conn.query(
+      `UPDATE bookings
+       SET checkin_status = 'Checked-in'
+       WHERE booking_id = ?`,
+      [bookingId]
+    );
+
+    await conn.commit();
+
+    res.json({
+      success: true,
+      message: 'Passenger checked in successfully.',
+      booking_id: bookingId,
+      checkin_status: 'Checked-in',
+    });
+  } catch (err) {
+    await conn.rollback();
+
+    res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  } finally {
+    conn.release();
+  }
+}
+
+async function boardBooking(req, res, next) {
+  const conn = await db.getConnection();
+
+  try {
+    const bookingId = Number(req.params.id);
+
+    if (!bookingId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Booking ID is required.',
+      });
+    }
+
+    await conn.beginTransaction();
+
+    const [bookings] = await conn.query(
+      `SELECT booking_id, payment_status, reservation_status, checkin_status, boarding_status
+       FROM bookings
+       WHERE booking_id = ?
+       FOR UPDATE`,
+      [bookingId]
+    );
+
+    if (bookings.length === 0) {
+      throw new Error('Booking not found.');
+    }
+
+    const booking = bookings[0];
+
+    if (booking.reservation_status === 'Cancelled') {
+      throw new Error('Cannot board a cancelled booking.');
+    }
+
+    if (booking.payment_status !== 'Paid' || booking.reservation_status !== 'Confirmed') {
+      throw new Error('Only paid and confirmed bookings can board.');
+    }
+
+    if (booking.checkin_status !== 'Checked-in') {
+      throw new Error('Passenger must be checked in before boarding.');
+    }
+
+    if (booking.boarding_status === 'Boarded') {
+      throw new Error('Passenger is already boarded.');
+    }
+
+    await conn.query(
+      `UPDATE bookings
+       SET boarding_status = 'Boarded'
+       WHERE booking_id = ?`,
+      [bookingId]
+    );
+
+    await conn.commit();
+
+    res.json({
+      success: true,
+      message: 'Passenger marked as boarded successfully.',
+      booking_id: bookingId,
+      boarding_status: 'Boarded',
+    });
+  } catch (err) {
+    await conn.rollback();
+
+    res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  } finally {
+    conn.release();
+  }
+}
+
 module.exports = {
   getAllBookings,
   createBooking,
   myBookings,
   cancelBooking,
+  confirmPayment,
+  checkInBooking,
+  boardBooking,
 };

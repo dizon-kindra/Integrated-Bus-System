@@ -127,8 +127,60 @@ async function login(req, res, next) {
     next(err);
   }
 }
+async function adminLogin(req, res, next) {
+  try {
+    const { username = '', password = '' } = req.body;
 
+    if (!username || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Admin username and password are required.',
+      });
+    }
+
+    const [admins] = await db.query(
+      `SELECT admin_id, username, password
+       FROM admins
+       WHERE username = ?
+       LIMIT 1`,
+      [username]
+    );
+
+    if (admins.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid admin username or password.',
+      });
+    }
+
+    const admin = admins[0];
+
+    const isValid = await bcrypt.compare(
+      password,
+      normalizePhpHash(admin.password)
+    );
+
+    if (!isValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid admin username or password.',
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Admin login successful.',
+      admin: {
+        admin_id: admin.admin_id,
+        username: admin.username,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
 module.exports = {
   register,
   login,
+  adminLogin,
 };

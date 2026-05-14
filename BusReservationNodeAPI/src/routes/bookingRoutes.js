@@ -9,11 +9,16 @@ router.post('/create-booking', bookingController.createBooking);
 router.get('/my-bookings', bookingController.myBookings);
 router.post('/cancel-booking', bookingController.cancelBooking);
 
-// PHP-style aliases
-router.get('/bookings.php', bookingController.getAllBookings);
-router.get('/all_bookings.php', bookingController.getAllBookings);
-router.post('/create_booking.php', bookingController.createBooking);
-router.get('/my_bookings.php', bookingController.myBookings);
-router.post('/cancel_booking.php', bookingController.cancelBooking);
+// Admin confirm payment / confirm booking
+router.put('/admin/bookings/:id/confirm-payment', bookingController.confirmPayment);
+router.post('/admin/bookings/:id/confirm-payment', bookingController.confirmPayment);
+
+// Admin check-in passenger
+router.put('/admin/bookings/:id/check-in', bookingController.checkInBooking);
+router.post('/admin/bookings/:id/check-in', bookingController.checkInBooking);
+
+// Admin boarding passenger
+router.put('/admin/bookings/:id/board', bookingController.boardBooking);
+router.post('/admin/bookings/:id/board', bookingController.boardBooking);
 
 module.exports = router;

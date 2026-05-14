@@ -10,6 +10,9 @@ const authRoutes = require('./routes/authRoutes');
 const tripRoutes = require('./routes/tripRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
 const profileRoutes = require('./routes/profileRoutes');
+const busRoutes = require('./routes/busRoutes');
+const routeRoutes = require('./routes/routeRoutes');
+const scheduleRoutes = require('./routes/scheduleRoutes');
 
 const app = express();
 
@@ -32,6 +35,9 @@ app.use('/api', authRoutes);
 app.use('/api', tripRoutes);
 app.use('/api', bookingRoutes);
 app.use('/api', profileRoutes);
+app.use('/api', busRoutes);
+app.use('/api', routeRoutes);
+app.use('/api', scheduleRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
