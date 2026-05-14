@@ -81,8 +81,6 @@ if ($booked_result) {
     }
 }
 
-$total_amount = (float)$schedule['fare'];
-
 function format_time_confirm($time)
 {
     if (!$time) {
@@ -98,7 +96,7 @@ function format_date_confirm($date)
         return "N/A";
     }
 
-    return date("F d, Y", strtotime($date));
+    return date("M d, Y", strtotime($date));
 }
 ?>
 
@@ -110,43 +108,66 @@ function format_date_confirm($date)
     <?php require('inc/links.php'); ?>
 
     <style>
+        .booking-page-wrap {
+            max-width: 1180px;
+            margin: auto;
+        }
+
         .summary-card {
-            border-radius: 18px;
+            border-radius: 14px;
             overflow: hidden;
         }
 
         .summary-header {
             background: #172233;
             color: #fff;
-            padding: 22px 28px;
+            padding: 18px 24px;
+        }
+
+        .summary-header h4 {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+
+        .summary-header small {
+            font-size: 14px;
         }
 
         .summary-body {
-            padding: 28px;
+            padding: 22px 28px;
+        }
+
+        .summary-body h5 {
+            font-size: 19px;
+            margin-bottom: 14px;
         }
 
         .summary-label {
-            font-size: 13px;
+            font-size: 12px;
             color: #6c757d;
-            margin-bottom: 3px;
+            margin-bottom: 5px;
         }
 
         .summary-value {
+            font-size: 15px;
             font-weight: 700;
             color: #222;
         }
 
         .info-box {
             background: #f8f9fa;
-            border-radius: 12px;
-            padding: 14px;
-            margin-bottom: 14px;
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+            min-height: 70px;
         }
 
         .gold-btn {
             background: #AD8B3A;
             color: white;
             border: none;
+            padding: 8px 18px;
+            font-size: 14px;
         }
 
         .gold-btn:hover {
@@ -157,45 +178,45 @@ function format_date_confirm($date)
         .payment-note {
             background: #fff8e1;
             border-left: 5px solid #AD8B3A;
-            padding: 12px 15px;
+            padding: 10px 14px;
             border-radius: 8px;
-            font-size: 14px;
+            font-size: 13px;
         }
 
         .seat-note {
             background: #eef6ff;
             border-left: 5px solid #0d6efd;
-            padding: 12px 15px;
+            padding: 10px 14px;
             border-radius: 8px;
-            font-size: 14px;
+            font-size: 13px;
         }
 
         .online-payment-box {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 15px;
+        }
+
+        .seat-layout-wrapper {
             background: #f8f9fa;
             border: 1px solid #ddd;
             border-radius: 14px;
             padding: 18px;
         }
 
-        .seat-layout-wrapper {
-            background: #f8f9fa;
-            border: 1px solid #ddd;
-            border-radius: 16px;
-            padding: 22px;
-        }
-
         .seat-map {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(74px, 1fr));
-            gap: 18px;
-            max-width: 900px;
+            grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+            gap: 14px;
+            max-width: 820px;
         }
 
         .bus-seat {
-            width: 70px;
-            height: 78px;
+            width: 64px;
+            height: 72px;
             border: 2px solid #ced4da;
-            border-radius: 14px;
+            border-radius: 12px;
             background: #ffffff;
             cursor: pointer;
             position: relative;
@@ -207,13 +228,13 @@ function format_date_confirm($date)
         }
 
         .bus-seat:hover {
-            transform: translateY(-3px);
+            transform: translateY(-2px);
             border-color: #0d6efd;
         }
 
         .seat-icon {
-            width: 42px;
-            height: 42px;
+            width: 38px;
+            height: 38px;
             background-color: #212529;
             mask-image: url('images/seat.png');
             -webkit-mask-image: url('images/seat.png');
@@ -227,8 +248,8 @@ function format_date_confirm($date)
 
         .seat-no {
             position: absolute;
-            bottom: 5px;
-            font-size: 12px;
+            bottom: 4px;
+            font-size: 11px;
             font-weight: 800;
             color: #212529;
         }
@@ -268,20 +289,20 @@ function format_date_confirm($date)
         .seat-legend {
             display: flex;
             flex-wrap: wrap;
-            gap: 18px;
-            margin-bottom: 18px;
+            gap: 16px;
+            margin-bottom: 15px;
         }
 
         .legend-item {
             display: flex;
             align-items: center;
             gap: 8px;
-            font-size: 14px;
+            font-size: 13px;
         }
 
         .legend-seat {
-            width: 34px;
-            height: 34px;
+            width: 30px;
+            height: 30px;
             border-radius: 8px;
             border: 2px solid #ced4da;
             position: relative;
@@ -292,8 +313,8 @@ function format_date_confirm($date)
 
         .legend-seat::before {
             content: "";
-            width: 22px;
-            height: 22px;
+            width: 19px;
+            height: 19px;
             background-color: #212529;
             mask-image: url('images/seat.png');
             -webkit-mask-image: url('images/seat.png');
@@ -330,23 +351,27 @@ function format_date_confirm($date)
         .selected-seat-display {
             background: #eef6ff;
             border-left: 5px solid #0d6efd;
-            padding: 15px;
+            padding: 13px 14px;
             border-radius: 8px;
             font-size: 14px;
         }
 
         .dynamic-total {
-            font-size: 20px;
+            font-size: 19px;
             color: #198754;
             font-weight: 800;
         }
 
-        .d-none {
-            display: none !important;
+        .form-label {
+            font-size: 14px;
+        }
+
+        .form-control {
+            font-size: 14px;
         }
 
         .center-popup-icon {
-            font-size: 55px;
+            font-size: 50px;
         }
 
         .center-popup-btn {
@@ -359,6 +384,34 @@ function format_date_confirm($date)
             background: #8f722e;
             color: white;
         }
+
+        .btn-dark {
+            padding: 8px 18px;
+            font-size: 14px;
+        }
+
+        @media screen and (max-width: 768px) {
+            .summary-body {
+                padding: 18px;
+            }
+
+            .summary-header {
+                padding: 16px 20px;
+            }
+
+            .summary-header h4 {
+                font-size: 21px;
+            }
+
+            .seat-map {
+                grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+            }
+
+            .bus-seat {
+                width: 60px;
+                height: 68px;
+            }
+        }
     </style>
 </head>
 
@@ -366,10 +419,10 @@ function format_date_confirm($date)
 
 <?php require('inc/header.php'); ?>
 
-<div class="container-fluid px-lg-5 px-md-4 px-3">
+<div class="container-fluid px-lg-4 px-md-3 px-2 booking-page-wrap">
     <div class="row">
-        <div class="col-12 my-5 px-4">
-            <h2 class="fw-bold h-font">CONFIRM BOOKING</h2>
+        <div class="col-12 my-4 px-3">
+            <h2 class="fw-bold h-font mb-1">CONFIRM BOOKING</h2>
             <div style="font-size:14px;">
                 <a href="index.php" class="text-secondary text-decoration-none">HOME</a>
                 <span class="text-secondary"> > </span>
@@ -379,17 +432,17 @@ function format_date_confirm($date)
             </div>
         </div>
 
-        <div class="col-lg-12 col-md-12 mx-auto mb-5">
+        <div class="col-lg-11 col-md-12 mx-auto mb-5">
             <div class="card border-0 shadow summary-card">
                 <div class="summary-header">
-                    <h4 class="mb-1 fw-bold">Booking Summary</h4>
+                    <h4 class="fw-bold">Booking Summary</h4>
                     <small>Please review your trip, seat, and payment details before confirming.</small>
                 </div>
 
                 <div class="summary-body">
-                    <div class="row">
+                    <div class="row g-3">
                         <div class="col-lg-5 col-md-6">
-                            <h5 class="fw-bold mb-3">Passenger Details</h5>
+                            <h5 class="fw-bold">Passenger Details</h5>
 
                             <div class="info-box">
                                 <div class="summary-label">Passenger Name</div>
@@ -408,9 +461,9 @@ function format_date_confirm($date)
                         </div>
 
                         <div class="col-lg-7 col-md-6">
-                            <h5 class="fw-bold mb-3">Trip Details</h5>
+                            <h5 class="fw-bold">Trip Details</h5>
 
-                            <div class="row">
+                            <div class="row g-2">
                                 <div class="col-md-6">
                                     <div class="info-box">
                                         <div class="summary-label">Route</div>
@@ -475,7 +528,7 @@ function format_date_confirm($date)
 
                     <hr class="my-4">
 
-                    <h5 class="fw-bold mb-3">Seat Selection</h5>
+                    <h5 class="fw-bold">Seat Selection</h5>
 
                     <div class="seat-note mb-3">
                         Please select one or more available seat(s). Red seats are already booked.
@@ -527,10 +580,10 @@ function format_date_confirm($date)
 
                     <hr class="my-4">
 
-                    <h5 class="fw-bold mb-3">Payment Method</h5>
+                    <h5 class="fw-bold">Payment Method</h5>
 
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-5 mb-3">
                             <label class="form-label fw-bold">Choose Payment Method</label>
                             <select id="payment_method" class="form-control shadow-none" required>
                                 <option value="Pay at Terminal">Pay at Terminal</option>
@@ -542,32 +595,32 @@ function format_date_confirm($date)
                     <div class="online-payment-box d-none mb-3" id="onlinePaymentBox">
                         <h6 class="fw-bold mb-3">Card / Bank Payment Information</h6>
 
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
+                        <div class="row g-2">
+                            <div class="col-md-6 mb-2">
                                 <label class="form-label fw-bold">Cardholder / Account Name</label>
                                 <input type="text" id="account_name" class="form-control shadow-none"
                                     placeholder="Enter cardholder or account name">
                             </div>
 
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-6 mb-2">
                                 <label class="form-label fw-bold">Card / Account Number</label>
                                 <input type="text" id="account_number" class="form-control shadow-none"
                                     placeholder="Enter card or account number" maxlength="19">
                             </div>
 
-                            <div class="col-md-3 mb-3">
+                            <div class="col-md-3 mb-2">
                                 <label class="form-label fw-bold">Expiry Date</label>
                                 <input type="text" id="expiry_date" class="form-control shadow-none"
                                     placeholder="MM/YY" maxlength="5">
                             </div>
 
-                            <div class="col-md-3 mb-3">
+                            <div class="col-md-3 mb-2">
                                 <label class="form-label fw-bold">CVV</label>
                                 <input type="password" id="cvv" class="form-control shadow-none"
                                     placeholder="CVV" maxlength="4">
                             </div>
 
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-6 mb-2">
                                 <label class="form-label fw-bold">Payment Type</label>
                                 <select id="online_payment_type" class="form-control shadow-none">
                                     <option value="Card">Card</option>
@@ -588,11 +641,11 @@ function format_date_confirm($date)
                     </div>
 
                     <div class="d-flex gap-2">
-                        <button type="button" id="confirmBookingBtn" class="btn gold-btn px-4 shadow-none">
+                        <button type="button" id="confirmBookingBtn" class="btn gold-btn shadow-none">
                             Confirm Booking
                         </button>
 
-                        <a href="bus.php?view=all" class="btn btn-dark px-4 shadow-none">
+                        <a href="bus.php?view=all" class="btn btn-dark shadow-none">
                             Back
                         </a>
                     </div>
