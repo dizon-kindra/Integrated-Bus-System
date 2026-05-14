@@ -1,152 +1,33 @@
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MYBUS - Confirm Booking Details</title>
-    <?php require('inc/links.php') ?>
-
-    <style>
-        .seats-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 10px;
-            justify-content: center;
-        }
-
-        .seat-btn {
-            position: relative;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            background: #fff;
-            transition: 0.25s ease-in-out;
-            display: inline-flex;
-            justify-content: center;
-            align-items: center;
-            width: 55px;
-            height: 55px;
-            margin: 2px;
-            cursor: pointer;
-        }
-
-        .seat-btn:hover:not(:disabled) {
-            transform: scale(1.08);
-            border-color: #0d6efd;
-        }
-
-        .seat-btn img {
-            height: 38px;
-        }
-
-        .seat-number {
-            position: absolute;
-            top: 42%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 12px;
-            font-weight: bold;
-            color: black;
-        }
-
-        .seat-btn.booked {
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
-
-        .seat-btn.selected {
-            background: #0d6efd;
-            border-color: #0d6efd;
-        }
-
-        .seat-btn.selected .seat-number {
-            color: white;
-        }
-
-        .seat-legend {
-            border-top: 1px solid #eee;
-            padding-top: 12px;
-        }
-
-        .selected-legend-box {
-            width: 25px;
-            height: 25px;
-            background: #0d6efd;
-            border-radius: 5px;
-            display: inline-block;
-        }
-
-        .book-btn {
-            width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #AD8B3A, #c9a74d);
-            color: white;
-            font-weight: 600;
-            font-size: 16px;
-            border: none;
-            border-radius: 8px;
-            transition: all 0.3s ease;
-            letter-spacing: 0.5px;
-        }
-
-        .book-btn:hover {
-            background: linear-gradient(135deg, #c9a74d, #AD8B3A);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(0,0,0,0.2);
-        }
-
-        .book-btn:active {
-            transform: scale(0.97);
-        }
-
-        .book-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            box-shadow: none;
-            transform: none;
-        }
-
-        .trip-card {
-            border-radius: 16px;
-        }
-
-        .summary-box {
-            background: #f8f9fa;
-            border-radius: 12px;
-            padding: 15px;
-        }
-    </style>
-</head>
-
-<body class="bg-light">
-
-<?php require('inc/header.php'); ?>
-
 <?php
+require_once(__DIR__ . '/inc/db_config.php');
+require_once(__DIR__ . '/inc/essentials.php');
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 if (!(isset($_SESSION['login']) && $_SESSION['login'] == true)) {
-    redirect('bus.php');
+    redirect('index.php');
 }
 
-if (!isset($_GET['schedule_id'])) {
-    redirect('bus.php');
-}
+$user_id = $_SESSION['user_id'] ?? $_SESSION['id'] ?? 0;
+$user_name = $_SESSION['full_name'] ?? $_SESSION['name'] ?? '';
+$user_email = $_SESSION['email'] ?? '';
+$user_phone = $_SESSION['phone_number'] ?? $_SESSION['phonenum'] ?? '';
 
-$data = filteration($_GET);
+$schedule_id = isset($_GET['schedule_id']) ? (int)$_GET['schedule_id'] : 0;
+$passengers = isset($_GET['passengers']) ? (int)$_GET['passengers'] : 1;
 
-$schedule_id = (int)$data['schedule_id'];
-$passengers = isset($data['passengers']) ? (int)$data['passengers'] : 1;
-
-if ($passengers < 1) {
+if ($passengers <= 0) {
     $passengers = 1;
 }
 
-if ($passengers > 9) {
-    $passengers = 9;
+if ($schedule_id <= 0) {
+    die("Invalid booking request.");
 }
 
-$trip_res = select(
-    "SELECT 
+$query = "
+    SELECT 
         s.schedule_id,
         s.departure_date,
         s.departure_time,
@@ -158,259 +39,393 @@ $trip_res = select(
         b.bus_id,
         b.bus_number,
         b.plate_number,
-        b.capacity,
         b.bus_type,
-        b.status AS bus_status,
+        b.capacity,
 
         r.route_id,
         r.origin,
         r.destination,
-        r.estimated_duration,
-        r.status AS route_status
+        r.estimated_duration
     FROM schedules s
     INNER JOIN buses b ON s.bus_id = b.bus_id
     INNER JOIN routes r ON s.route_id = r.route_id
     WHERE s.schedule_id = ?
-    LIMIT 1",
-    [$schedule_id],
-    'i'
-);
+    LIMIT 1
+";
 
-if (mysqli_num_rows($trip_res) == 0) {
-    redirect('bus.php');
+$result = select($query, [$schedule_id], 'i');
+
+if (!$result || mysqli_num_rows($result) == 0) {
+    die("Schedule not found.");
 }
 
-$trip_data = mysqli_fetch_assoc($trip_res);
+$schedule = mysqli_fetch_assoc($result);
 
-$user_id = $_SESSION['user_id'] ?? $_SESSION['id'] ?? 0;
-
-$user_res = select(
-    "SELECT 
-        user_id,
-        full_name,
-        email,
-        phone_number
-    FROM users
-    WHERE user_id = ?
-    LIMIT 1",
-    [$user_id],
-    'i'
-);
-
-if (mysqli_num_rows($user_res) == 0) {
-    redirect('logout.php');
+if (strtolower($schedule['trip_status']) == 'cancelled') {
+    die("This trip is no longer available.");
 }
 
-$user_data = mysqli_fetch_assoc($user_res);
+if ($passengers > (int)$schedule['available_seats']) {
+    die("Not enough available seats for this trip.");
+}
 
-$total_amount = (float)$trip_data['fare'] * $passengers;
+$bookedSeats = [];
 
-function format_time_display($time)
+$booked_query = "
+    SELECT seat_no 
+    FROM bookings 
+    WHERE schedule_id = ? 
+    AND reservation_status != 'Cancelled'
+";
+
+$booked_result = select($booked_query, [$schedule_id], 'i');
+
+if ($booked_result) {
+    while ($row = mysqli_fetch_assoc($booked_result)) {
+        $bookedSeats[] = (int)$row['seat_no'];
+    }
+}
+
+$total_amount = (float)$schedule['fare'] * $passengers;
+
+function format_time_confirm($time)
 {
+    if (!$time) {
+        return "N/A";
+    }
+
     return date("h:i A", strtotime($time));
+}
+
+function format_date_confirm($date)
+{
+    if (!$date) {
+        return "N/A";
+    }
+
+    return date("F d, Y", strtotime($date));
 }
 ?>
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MYBUS - Confirm Booking</title>
+    <?php require('inc/links.php'); ?>
+
+    <style>
+        .summary-card {
+            border-radius: 18px;
+            overflow: hidden;
+        }
+
+        .summary-header {
+            background: #172233;
+            color: #fff;
+            padding: 22px 28px;
+        }
+
+        .summary-body {
+            padding: 28px;
+        }
+
+        .summary-label {
+            font-size: 13px;
+            color: #6c757d;
+            margin-bottom: 3px;
+        }
+
+        .summary-value {
+            font-weight: 700;
+            color: #222;
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+
+        .gold-btn {
+            background: #AD8B3A;
+            color: white;
+            border: none;
+        }
+
+        .gold-btn:hover {
+            background: #8f722e;
+            color: white;
+        }
+
+        .payment-note {
+            background: #fff8e1;
+            border-left: 5px solid #AD8B3A;
+            padding: 12px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .seat-note {
+            background: #eef6ff;
+            border-left: 5px solid #0d6efd;
+            padding: 12px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .online-payment-box {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 14px;
+            padding: 18px;
+        }
+
+        .d-none {
+            display: none !important;
+        }
+
+        .center-popup-icon {
+            font-size: 55px;
+        }
+
+        .center-popup-btn {
+            background: #AD8B3A;
+            color: white;
+            border: none;
+        }
+
+        .center-popup-btn:hover {
+            background: #8f722e;
+            color: white;
+        }
+    </style>
+</head>
+
+<body class="bg-light">
+
+<?php require('inc/header.php'); ?>
+
 <div class="container">
     <div class="row">
-
-        <div class="col-12 my-5 mb-4 px-4">
+        <div class="col-12 my-5 px-4">
             <h2 class="fw-bold h-font">CONFIRM BOOKING</h2>
             <div style="font-size:14px;">
                 <a href="index.php" class="text-secondary text-decoration-none">HOME</a>
                 <span class="text-secondary"> > </span>
-                <a href="bus.php" class="text-secondary text-decoration-none">BUSES</a>
+                <a href="bus.php" class="text-secondary text-decoration-none">SEARCH TRIPS</a>
                 <span class="text-secondary"> > </span>
-                <span class="text-secondary">CONFIRM</span>
+                <span class="text-secondary">CONFIRM BOOKING</span>
             </div>
         </div>
 
-        <div class="col-lg-5 col-md-12 px-4 mb-4">
-            <div class="card p-3 shadow-sm border-0 trip-card">
-                <h5 class="fw-bold mb-3">Select Seat</h5>
-
-                <div class="alert alert-info py-2">
-                    Please select <strong><?php echo $passengers; ?></strong> seat(s).
+        <div class="col-lg-10 col-md-11 mx-auto mb-5">
+            <div class="card border-0 shadow summary-card">
+                <div class="summary-header">
+                    <h4 class="mb-1 fw-bold">Booking Summary</h4>
+                    <small>Please review your trip, seat, and payment details before confirming.</small>
                 </div>
 
-                <div id="seatLoader" class="text-center my-3">
-                    <div class="spinner-border text-info" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <p class="text-muted mt-2">Loading seats...</p>
-                </div>
+                <div class="summary-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5 class="fw-bold mb-3">Passenger Details</h5>
 
-                <div id="seatsContainer" class="seats-container rounded mb-3"></div>
+                            <div class="info-box">
+                                <div class="summary-label">Passenger Name</div>
+                                <div class="summary-value"><?php echo htmlspecialchars($user_name); ?></div>
+                            </div>
 
-                <div class="mt-3 d-flex gap-3 flex-wrap align-items-center seat-legend">
-                    <span class="d-flex align-items-center gap-1">
-                        <img src="images/seat.png" height="25"> Available
-                    </span>
+                            <div class="info-box">
+                                <div class="summary-label">Email</div>
+                                <div class="summary-value"><?php echo htmlspecialchars($user_email); ?></div>
+                            </div>
 
-                    <span class="d-flex align-items-center gap-1">
-                        <img src="images/book-seat.png" height="25"> Booked
-                    </span>
+                            <div class="info-box">
+                                <div class="summary-label">Phone</div>
+                                <div class="summary-value"><?php echo htmlspecialchars($user_phone); ?></div>
+                            </div>
 
-                    <span class="d-flex align-items-center gap-1">
-                        <span class="selected-legend-box"></span> Selected
-                    </span>
-                </div>
-
-                <hr>
-
-                <div class="summary-box">
-                    <h6 class="fw-bold mb-2">Selected Seats</h6>
-                    <div id="selectedSeats" class="text-muted">
-                        No seats selected yet.
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-7 col-md-12 px-4">
-            <div class="card mb-4 border-0 shadow-sm trip-card">
-                <div class="card-body">
-                    <h5 class="fw-bold mb-3">Trip Summary</h5>
-
-                    <div class="row mb-3">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label mb-1 fw-bold">Bus Number</label>
-                            <input type="text" value="<?php echo htmlspecialchars($trip_data['bus_number']); ?>"
-                                class="form-control shadow-none" readonly>
+                            <div class="info-box">
+                                <div class="summary-label">No. of Passenger(s)</div>
+                                <div class="summary-value"><?php echo $passengers; ?></div>
+                            </div>
                         </div>
 
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label mb-1 fw-bold">Bus Type</label>
-                            <input type="text" value="<?php echo htmlspecialchars($trip_data['bus_type']); ?>"
-                                class="form-control shadow-none" readonly>
-                        </div>
+                        <div class="col-md-6">
+                            <h5 class="fw-bold mb-3">Trip Details</h5>
 
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label mb-1 fw-bold">Source</label>
-                            <input type="text" value="<?php echo htmlspecialchars($trip_data['origin']); ?>"
-                                class="form-control shadow-none" readonly>
-                        </div>
+                            <div class="info-box">
+                                <div class="summary-label">Route</div>
+                                <div class="summary-value">
+                                    <?php echo htmlspecialchars($schedule['origin']); ?> → <?php echo htmlspecialchars($schedule['destination']); ?>
+                                </div>
+                            </div>
 
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label mb-1 fw-bold">Destination</label>
-                            <input type="text" value="<?php echo htmlspecialchars($trip_data['destination']); ?>"
-                                class="form-control shadow-none" readonly>
-                        </div>
+                            <div class="info-box">
+                                <div class="summary-label">Bus</div>
+                                <div class="summary-value">
+                                    <?php echo htmlspecialchars($schedule['bus_number']); ?> |
+                                    <?php echo htmlspecialchars($schedule['bus_type']); ?>
+                                </div>
+                            </div>
 
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label mb-1 fw-bold">Departure Date</label>
-                            <input type="text" value="<?php echo htmlspecialchars($trip_data['departure_date']); ?>"
-                                class="form-control shadow-none" readonly>
-                        </div>
+                            <div class="info-box">
+                                <div class="summary-label">Travel Date and Time</div>
+                                <div class="summary-value">
+                                    <?php echo format_date_confirm($schedule['departure_date']); ?>
+                                    |
+                                    <?php echo format_time_confirm($schedule['departure_time']); ?>
+                                    -
+                                    <?php echo format_time_confirm($schedule['arrival_time']); ?>
+                                </div>
+                            </div>
 
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label mb-1 fw-bold">Departure Time</label>
-                            <input type="text" value="<?php echo format_time_display($trip_data['departure_time']); ?>"
-                                class="form-control shadow-none" readonly>
-                        </div>
+                            <div class="info-box">
+                                <div class="summary-label">Fare</div>
+                                <div class="summary-value">
+                                    ₱<?php echo number_format((float)$schedule['fare'], 2); ?> x <?php echo $passengers; ?> passenger(s)
+                                </div>
+                            </div>
 
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label mb-1 fw-bold">Arrival Time</label>
-                            <input type="text" value="<?php echo format_time_display($trip_data['arrival_time']); ?>"
-                                class="form-control shadow-none" readonly>
-                        </div>
-
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label mb-1 fw-bold">Fare Per Passenger</label>
-                            <input type="text" value="₱<?php echo htmlspecialchars($trip_data['fare']); ?>"
-                                class="form-control shadow-none" readonly>
+                            <div class="info-box">
+                                <div class="summary-label">Total Amount</div>
+                                <div class="summary-value fs-5 text-success">
+                                    ₱<?php echo number_format($total_amount, 2); ?>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <hr>
+                    <hr class="my-4">
 
-                    <form id="booking_form">
-                        <h5 class="mb-3 fw-bold">Passenger Details</h5>
+                    <h5 class="fw-bold mb-3">Seat Selection</h5>
+
+                    <div class="seat-note mb-3">
+                        Please select <?php echo $passengers; ?> seat(s). Already booked seats are not shown.
+                    </div>
+
+                    <div class="row">
+                        <?php for ($i = 1; $i <= $passengers; $i++) { ?>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-bold">Seat for Passenger <?php echo $i; ?></label>
+                                <select class="form-control shadow-none seat-select" required>
+                                    <option value="">Select Seat</option>
+
+                                    <?php
+                                    for ($seat = 1; $seat <= (int)$schedule['capacity']; $seat++) {
+                                        if (!in_array($seat, $bookedSeats)) {
+                                            echo '<option value="' . $seat . '">Seat ' . $seat . '</option>';
+                                        }
+                                    }
+                                    ?>
+                                </select>
+                            </div>
+                        <?php } ?>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <h5 class="fw-bold mb-3">Payment Method</h5>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Choose Payment Method</label>
+                            <select id="payment_method" class="form-control shadow-none" required>
+                                <option value="Pay at Terminal">Pay at Terminal</option>
+                                <option value="Online Payment">Card / Bank Payment</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="online-payment-box d-none mb-3" id="onlinePaymentBox">
+                        <h6 class="fw-bold mb-3">Card / Bank Payment Information</h6>
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label mb-1 fw-bold">Name</label>
-                                <input type="text" id="passenger_name"
-                                    value="<?php echo htmlspecialchars($user_data['full_name']); ?>"
-                                    class="form-control shadow-none" required>
+                                <label class="form-label fw-bold">Cardholder / Account Name</label>
+                                <input type="text" id="account_name" class="form-control shadow-none"
+                                    placeholder="Enter cardholder or account name">
                             </div>
 
                             <div class="col-md-6 mb-3">
-                                <label class="form-label mb-1 fw-bold">Email</label>
-                                <input type="email" id="passenger_email"
-                                    value="<?php echo htmlspecialchars($user_data['email']); ?>"
-                                    class="form-control shadow-none" readonly>
+                                <label class="form-label fw-bold">Card / Account Number</label>
+                                <input type="text" id="account_number" class="form-control shadow-none"
+                                    placeholder="Enter card or account number" maxlength="19">
+                            </div>
+
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label fw-bold">Expiry Date</label>
+                                <input type="text" id="expiry_date" class="form-control shadow-none"
+                                    placeholder="MM/YY" maxlength="5">
+                            </div>
+
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label fw-bold">CVV</label>
+                                <input type="password" id="cvv" class="form-control shadow-none"
+                                    placeholder="CVV" maxlength="4">
                             </div>
 
                             <div class="col-md-6 mb-3">
-                                <label class="form-label mb-1 fw-bold">Phone Number</label>
-                                <input type="text" id="passenger_phone"
-                                    value="<?php echo htmlspecialchars($user_data['phone_number']); ?>"
-                                    class="form-control shadow-none" required>
-                            </div>
-
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label mb-1 fw-bold">No. of Passengers</label>
-                                <input type="number" id="passenger_count"
-                                    value="<?php echo $passengers; ?>"
-                                    class="form-control shadow-none" readonly>
-                            </div>
-
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label mb-1 fw-bold">Payment Method</label>
-                                <input type="text" value="Pay at Terminal"
-                                    class="form-control shadow-none" readonly>
-                            </div>
-
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label mb-1 fw-bold">Total Amount</label>
-                                <input type="text" id="total_amount_display"
-                                    value="₱<?php echo number_format($total_amount, 2); ?>"
-                                    class="form-control shadow-none fw-bold text-success" readonly>
-                            </div>
-
-                            <div class="col-12">
-                                <div class="spinner-border text-info mb-3 d-none" id="info_loader" role="status">
-                                    <span class="visually-hidden">Loading...</span>
-                                </div>
-
-                                <h6 class="mb-3 text-danger" id="pay_info">Please select seats.</h6>
-
-                                <button type="submit" id="PayNow" class="book-btn" disabled>
-                                    🚌 Confirm Booking
-                                </button>
+                                <label class="form-label fw-bold">Payment Type</label>
+                                <select id="online_payment_type" class="form-control shadow-none">
+                                    <option value="Card">Card</option>
+                                    <option value="Bank">Bank</option>
+                                </select>
                             </div>
                         </div>
-                    </form>
 
+                        <small class="text-muted">
+                            Demo payment only. Card details are validated on the page and are not stored.
+                        </small>
+                    </div>
+
+                    <div class="payment-note mb-4" id="paymentNote">
+                        <strong>Pay at Terminal:</strong>
+                        Your booking will be marked as pending. Please pay at the terminal.
+                        Your ticket will only be available after admin confirms your payment.
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="button" id="confirmBookingBtn" class="btn gold-btn px-4 shadow-none">
+                            Confirm Booking
+                        </button>
+
+                        <a href="bus.php?view=all" class="btn btn-dark px-4 shadow-none">
+                            Back
+                        </a>
+                    </div>
+
+                    <div class="mt-3 d-none" id="bookingLoader">
+                        <div class="spinner-border text-warning" role="status"></div>
+                        <span class="ms-2">Processing your booking...</span>
+                    </div>
                 </div>
             </div>
         </div>
-
     </div>
 </div>
 
-<div class="modal fade" id="bookingSuccessModal" tabindex="-1" aria-hidden="true">
+<!-- Booking Message Modal -->
+<div class="modal fade" id="bookingMessageModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-4">
+        <div class="modal-content border-0 shadow rounded-4">
             <div class="modal-body text-center p-5">
-                <div class="mb-3" style="font-size: 55px;">✅</div>
-
-                <h4 class="fw-bold mb-2">Booking Successful!</h4>
-
-                <p class="text-muted mb-3">
-                    Your seat has been reserved successfully.<br>
-                    Please pay at the terminal before departure.
-                </p>
-
-                <div class="bg-light rounded p-3 mb-4">
-                    <strong>Booking Code:</strong>
-                    <div id="successBookingCode" class="text-success fw-bold mt-1"></div>
+                <div id="bookingMessageIcon" class="center-popup-icon mb-3">
+                    ✅
                 </div>
 
-                <button type="button" class="btn w-100 text-white fw-semibold"
-                    style="background:#AD8B3A;"
-                    id="successOkBtn">
+                <h5 class="fw-bold mb-2" id="bookingMessageTitle">
+                    Booking Created
+                </h5>
+
+                <p class="text-muted mb-4" id="bookingMessageText">
+                    Your booking has been created successfully.
+                </p>
+
+                <button type="button" class="btn center-popup-btn px-5 fw-semibold shadow-none"
+                    id="bookingMessageOkBtn">
                     OK
                 </button>
             </div>
@@ -418,199 +433,201 @@ function format_time_display($time)
     </div>
 </div>
 
+<?php require('inc/footer.php'); ?>
+
 <script>
-const API_BASE_URL = "http://localhost:3000/api";
+document.addEventListener('DOMContentLoaded', function () {
+    const CONFIRM_BOOKING_API_BASE_URL = "http://localhost:3000/api";
 
-const scheduleId = <?php echo (int)$schedule_id; ?>;
-const userId = <?php echo (int)$user_data['user_id']; ?>;
-const requiredSeats = <?php echo (int)$passengers; ?>;
+    const paymentMethod = document.getElementById('payment_method');
+    const onlinePaymentBox = document.getElementById('onlinePaymentBox');
+    const paymentNote = document.getElementById('paymentNote');
 
-const seatsContainer = document.getElementById('seatsContainer');
-const seatLoader = document.getElementById('seatLoader');
-const selectedSeatsDiv = document.getElementById('selectedSeats');
-const payInfo = document.getElementById('pay_info');
-const payNowBtn = document.getElementById('PayNow');
-const bookingForm = document.getElementById('booking_form');
-const infoLoader = document.getElementById('info_loader');
+    const accountName = document.getElementById('account_name');
+    const accountNumber = document.getElementById('account_number');
+    const expiryDate = document.getElementById('expiry_date');
+    const cvv = document.getElementById('cvv');
+    const onlinePaymentType = document.getElementById('online_payment_type');
 
-let selectedSeats = [];
+    const confirmBookingBtn = document.getElementById('confirmBookingBtn');
+    const bookingLoader = document.getElementById('bookingLoader');
 
-function updateSelectedSeatsDisplay() {
-    if (selectedSeats.length === 0) {
-        selectedSeatsDiv.innerHTML = '<span class="text-muted">No seats selected yet.</span>';
-        payInfo.innerHTML = 'Please select seats.';
-        payInfo.className = 'mb-3 text-danger';
-        payNowBtn.disabled = true;
-        return;
+    const userId = <?php echo json_encode((int)$user_id); ?>;
+    const scheduleId = <?php echo json_encode((int)$schedule_id); ?>;
+    const passengerName = <?php echo json_encode($user_name); ?>;
+    const passengerPhone = <?php echo json_encode($user_phone); ?>;
+    const passengerEmail = <?php echo json_encode($user_email); ?>;
+
+    function showBookingPopup(type, message, callback = null) {
+        const modalEl = document.getElementById('bookingMessageModal');
+        const icon = document.getElementById('bookingMessageIcon');
+        const title = document.getElementById('bookingMessageTitle');
+        const text = document.getElementById('bookingMessageText');
+        const okBtn = document.getElementById('bookingMessageOkBtn');
+
+        if (type === 'success') {
+            icon.innerHTML = '✅';
+            title.innerText = 'Booking Created';
+        } else {
+            icon.innerHTML = '❌';
+            title.innerText = 'Booking Failed';
+        }
+
+        text.innerText = message;
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+
+        okBtn.onclick = function () {
+            modal.hide();
+
+            if (callback) {
+                callback();
+            }
+        };
     }
 
-    let seatHtml = '';
+    paymentMethod.addEventListener('change', function () {
+        if (this.value === 'Pay at Terminal') {
+            onlinePaymentBox.classList.add('d-none');
 
-    selectedSeats.forEach(function(seat) {
-        seatHtml += '<span class="badge bg-primary me-1 mb-1">Seat ' + seat + '</span>';
+            accountName.value = '';
+            accountNumber.value = '';
+            expiryDate.value = '';
+            cvv.value = '';
+
+            paymentNote.innerHTML =
+                "<strong>Pay at Terminal:</strong> Your booking will be marked as pending. Please pay at the terminal. Your ticket will only be available after admin confirms your payment.";
+        } else {
+            onlinePaymentBox.classList.remove('d-none');
+
+            paymentNote.innerHTML =
+                "<strong>Card / Bank Payment:</strong> Enter your payment details. Once the simulated payment is successful, your booking will be confirmed and your ticket will be available immediately.";
+        }
     });
 
-    selectedSeatsDiv.innerHTML = seatHtml;
+    function getSelectedSeats() {
+        const selectedSeats = [];
+        const seatSelects = document.querySelectorAll('.seat-select');
 
-    if (selectedSeats.length < requiredSeats) {
-        payInfo.innerHTML = 'Please select ' + (requiredSeats - selectedSeats.length) + ' more seat(s).';
-        payInfo.className = 'mb-3 text-danger';
-        payNowBtn.disabled = true;
-    } else {
-        payInfo.innerHTML = 'Ready to book seat(s): ' + selectedSeats.join(', ');
-        payInfo.className = 'mb-3 text-success';
-        payNowBtn.disabled = false;
-    }
-}
+        for (let i = 0; i < seatSelects.length; i++) {
+            const seatValue = seatSelects[i].value;
 
-function loadSeats() {
-    seatLoader.classList.remove('d-none');
-    seatsContainer.innerHTML = '';
-
-    fetch(`${API_BASE_URL}/get-seats?schedule_id=${scheduleId}`)
-        .then(function(response) {
-            return response.json();
-        })
-        .then(function(data) {
-            seatLoader.classList.add('d-none');
-
-            if (!data.success) {
-                seatsContainer.innerHTML =
-                    '<div class="alert alert-danger w-100 text-center">' +
-                    data.message +
-                    '</div>';
-                return;
+            if (seatValue === '') {
+                showBookingPopup('error', 'Please select all required seats.');
+                seatSelects[i].focus();
+                return null;
             }
 
-            let html = '';
+            if (selectedSeats.includes(seatValue)) {
+                showBookingPopup('error', 'Duplicate seat selected. Please choose different seats.');
+                seatSelects[i].focus();
+                return null;
+            }
 
-            data.seats.forEach(function(seat) {
-                if (seat.status === 'booked') {
-                    html +=
-                        '<button type="button" class="seat-btn booked overflow-hidden" disabled>' +
-                            '<img src="images/book-seat.png">' +
-                            '<span class="seat-number">' + seat.seat_no + '</span>' +
-                        '</button>';
-                } else {
-                    html +=
-                        '<button type="button" class="seat-btn available overflow-hidden" data-seat="' + seat.seat_no + '">' +
-                            '<img src="images/seat.png">' +
-                            '<span class="seat-number">' + seat.seat_no + '</span>' +
-                        '</button>';
-                }
-            });
+            selectedSeats.push(seatValue);
+        }
 
-            seatsContainer.innerHTML = html;
-
-            document.querySelectorAll('.seat-btn.available').forEach(function(button) {
-                button.addEventListener('click', function() {
-                    const seatNo = parseInt(this.dataset.seat);
-
-                    if (selectedSeats.includes(seatNo)) {
-                        selectedSeats = selectedSeats.filter(function(s) {
-                            return s !== seatNo;
-                        });
-
-                        this.classList.remove('selected');
-                    } else {
-                        if (selectedSeats.length >= requiredSeats) {
-                            alert('You can only select ' + requiredSeats + ' seat(s).');
-                            return;
-                        }
-
-                        selectedSeats.push(seatNo);
-                        this.classList.add('selected');
-                    }
-
-                    selectedSeats.sort(function(a, b) {
-                        return a - b;
-                    });
-
-                    updateSelectedSeatsDisplay();
-                });
-            });
-
-            updateSelectedSeatsDisplay();
-        })
-        .catch(function(error) {
-            console.error('Seat Load Error:', error);
-
-            seatLoader.classList.add('d-none');
-
-            seatsContainer.innerHTML =
-                '<div class="alert alert-danger w-100 text-center">' +
-                'Unable to load seats. Please make sure the Node API is running.' +
-                '</div>';
-        });
-}
-
-bookingForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-
-    if (selectedSeats.length !== requiredSeats) {
-        alert('Please select exactly ' + requiredSeats + ' seat(s).');
-        return;
+        return selectedSeats;
     }
 
-    payNowBtn.disabled = true;
-    infoLoader.classList.remove('d-none');
-    payInfo.innerHTML = 'Processing booking...';
-    payInfo.className = 'mb-3 text-info';
-
-    const passengerName = document.getElementById('passenger_name').value.trim();
-    const passengerPhone = document.getElementById('passenger_phone').value.trim();
-    const passengerEmail = document.getElementById('passenger_email').value.trim();
-
-    fetch(`${API_BASE_URL}/create-booking`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            user_id: userId,
-            schedule_id: scheduleId,
-            passenger_name: passengerName,
-            phone: passengerPhone,
-            email: passengerEmail,
-            seats: selectedSeats
-        })
-    })
-    .then(function(response) {
-        return response.json();
-    })
-    .then(function(data) {
-        infoLoader.classList.add('d-none');
-
-        if (data.success) {
-            document.getElementById('successBookingCode').innerText = data.booking_code;
-
-            const successModal = new bootstrap.Modal(document.getElementById('bookingSuccessModal'));
-            successModal.show();
-
-            document.getElementById('successOkBtn').onclick = function() {
-                window.location.href = 'bookings.php';
-            };
-        } else {
-            payInfo.innerHTML = data.message;
-            payInfo.className = 'mb-3 text-danger';
-            payNowBtn.disabled = false;
-            loadSeats();
+    function validateOnlinePayment() {
+        if (paymentMethod.value === 'Pay at Terminal') {
+            return true;
         }
-    })
-    .catch(function(error) {
-        console.error('Booking Error:', error);
 
-        infoLoader.classList.add('d-none');
-        payInfo.innerHTML = 'Booking failed. Please make sure the Node API is running.';
-        payInfo.className = 'mb-3 text-danger';
-        payNowBtn.disabled = false;
+        if (accountName.value.trim() === '') {
+            showBookingPopup('error', 'Please enter the cardholder or account name.');
+            accountName.focus();
+            return false;
+        }
+
+        if (accountNumber.value.trim().length < 8) {
+            showBookingPopup('error', 'Please enter a valid card or account number.');
+            accountNumber.focus();
+            return false;
+        }
+
+        if (expiryDate.value.trim() === '') {
+            showBookingPopup('error', 'Please enter the expiry date.');
+            expiryDate.focus();
+            return false;
+        }
+
+        if (cvv.value.trim().length < 3) {
+            showBookingPopup('error', 'Please enter a valid CVV.');
+            cvv.focus();
+            return false;
+        }
+
+        return true;
+    }
+
+    function generateOnlineReference() {
+        const now = Date.now();
+        const type = onlinePaymentType.value.toUpperCase();
+        return type + '-PAY-' + now;
+    }
+
+    confirmBookingBtn.addEventListener('click', function () {
+        const selectedSeats = getSelectedSeats();
+
+        if (selectedSeats === null) {
+            return;
+        }
+
+        if (!validateOnlinePayment()) {
+            return;
+        }
+
+        const selectedPaymentMethod = paymentMethod.value;
+        const generatedReferenceNo =
+            selectedPaymentMethod === 'Online Payment' ? generateOnlineReference() : '';
+
+        confirmBookingBtn.disabled = true;
+        bookingLoader.classList.remove('d-none');
+
+        fetch(`${CONFIRM_BOOKING_API_BASE_URL}/create-booking`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                schedule_id: scheduleId,
+                passenger_name: passengerName,
+                phone: passengerPhone,
+                email: passengerEmail,
+                seats: selectedSeats,
+                payment_method: selectedPaymentMethod,
+                reference_no: generatedReferenceNo
+            })
+        })
+        .then(function (response) {
+            return response.json();
+        })
+        .then(function (data) {
+            console.log('Create booking response:', data);
+
+            if (data.success) {
+                showBookingPopup('success', data.message || 'Booking created successfully.', function () {
+                    window.location.href = 'bookings.php';
+                });
+            } else {
+                showBookingPopup('error', data.message || 'Failed to create booking.');
+                confirmBookingBtn.disabled = false;
+                bookingLoader.classList.add('d-none');
+            }
+        })
+        .catch(function (error) {
+            console.error('Booking error:', error);
+            showBookingPopup('error', 'Booking failed. Please make sure the Node API is running.');
+            confirmBookingBtn.disabled = false;
+            bookingLoader.classList.add('d-none');
+        });
     });
 });
-
-loadSeats();
 </script>
-
-<?php require('inc/footer.php'); ?>
 
 </body>
 </html>
