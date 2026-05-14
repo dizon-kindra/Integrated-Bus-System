@@ -206,29 +206,11 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="admin.cs">
+    <Compile Include="AdminDashboardForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="admin.Designer.cs">
-      <DependentUpon>admin.cs</DependentUpon>
-    </Compile>
-    <Compile Include="AdminDashboardForm.cs.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="AdminDashboardForm.cs.Designer.cs">
-      <DependentUpon>AdminDashboardForm.cs.cs</DependentUpon>
-    </Compile>
-    <Compile Include="book.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="book.Designer.cs">
-      <DependentUpon>book.cs</DependentUpon>
-    </Compile>
-    <Compile Include="bus.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="bus.Designer.cs">
-      <DependentUpon>bus.cs</DependentUpon>
+    <Compile Include="AdminDashboardForm.Designer.cs">
+      <DependentUpon>AdminDashboardForm.cs</DependentUpon>
     </Compile>
     <Compile Include="BusManagementForm.cs">
       <SubType>Form</SubType>
@@ -236,23 +218,11 @@
     <Compile Include="BusManagementForm.Designer.cs">
       <DependentUpon>BusManagementForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="cancel.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="cancel.Designer.cs">
-      <DependentUpon>cancel.cs</DependentUpon>
-    </Compile>
     <Compile Include="CheckInBoardingForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="CheckInBoardingForm.Designer.cs">
       <DependentUpon>CheckInBoardingForm.cs</DependentUpon>
-    </Compile>
-    <Compile Include="DashboardForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="DashboardForm.Designer.cs">
-      <DependentUpon>DashboardForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>
@@ -260,35 +230,11 @@
     <Compile Include="Form1.Designer.cs">
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
-    <Compile Include="help.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="help.Designer.cs">
-      <DependentUpon>help.cs</DependentUpon>
-    </Compile>
-    <Compile Include="helps.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="helps.Designer.cs">
-      <DependentUpon>helps.cs</DependentUpon>
-    </Compile>
-    <Compile Include="home.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="home.Designer.cs">
-      <DependentUpon>home.cs</DependentUpon>
-    </Compile>
     <Compile Include="login.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="login.Designer.cs">
       <DependentUpon>login.cs</DependentUpon>
-    </Compile>
-    <Compile Include="mainform.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="mainform.Designer.cs">
-      <DependentUpon>mainform.cs</DependentUpon>
     </Compile>
     <Compile Include="PaymentConfirmationForm.cs">
       <SubType>Form</SubType>
@@ -297,30 +243,12 @@
       <DependentUpon>PaymentConfirmationForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Program.cs" />
-    <Compile Include="about.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="about.Designer.cs">
-      <DependentUpon>about.cs</DependentUpon>
-    </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="recipt.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="recipt.Designer.cs">
-      <DependentUpon>recipt.cs</DependentUpon>
-    </Compile>
     <Compile Include="ReportsForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="ReportsForm.Designer.cs">
       <DependentUpon>ReportsForm.cs</DependentUpon>
-    </Compile>
-    <Compile Include="res.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="res.Designer.cs">
-      <DependentUpon>res.cs</DependentUpon>
     </Compile>
     <Compile Include="ReservationManagementForm.cs">
       <SubType>Form</SubType>
@@ -340,65 +268,23 @@
     <Compile Include="ScheduleManagementForm.Designer.cs">
       <DependentUpon>ScheduleManagementForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="search.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="search.Designer.cs">
-      <DependentUpon>search.cs</DependentUpon>
-    </Compile>
-    <Compile Include="time table.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="time table.Designer.cs">
-      <DependentUpon>time table.cs</DependentUpon>
-    </Compile>
-    <EmbeddedResource Include="admin.resx">
-      <DependentUpon>admin.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="AdminDashboardForm.cs.resx">
-      <DependentUpon>AdminDashboardForm.cs.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="book.resx">
-      <DependentUpon>book.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="bus.resx">
-      <DependentUpon>bus.cs</DependentUpon>
+    <EmbeddedResource Include="AdminDashboardForm.resx">
+      <DependentUpon>AdminDashboardForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="BusManagementForm.resx">
       <DependentUpon>BusManagementForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="cancel.resx">
-      <DependentUpon>cancel.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="CheckInBoardingForm.resx">
       <DependentUpon>CheckInBoardingForm.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="DashboardForm.resx">
-      <DependentUpon>DashboardForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Form1.resx">
       <DependentUpon>Form1.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="help.resx">
-      <DependentUpon>help.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="helps.resx">
-      <DependentUpon>helps.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="home.resx">
-      <DependentUpon>home.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="login.resx">
       <DependentUpon>login.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="mainform.resx">
-      <DependentUpon>mainform.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="PaymentConfirmationForm.resx">
       <DependentUpon>PaymentConfirmationForm.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="about.resx">
-      <DependentUpon>about.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\licenses.licx" />
     <EmbeddedResource Include="Properties\Resources.resx">
@@ -410,14 +296,8 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <EmbeddedResource Include="recipt.resx">
-      <DependentUpon>recipt.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="ReportsForm.resx">
       <DependentUpon>ReportsForm.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="res.resx">
-      <DependentUpon>res.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="ReservationManagementForm.resx">
       <DependentUpon>ReservationManagementForm.cs</DependentUpon>
@@ -427,12 +307,6 @@
     </EmbeddedResource>
     <EmbeddedResource Include="ScheduleManagementForm.resx">
       <DependentUpon>ScheduleManagementForm.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="search.resx">
-      <DependentUpon>search.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="time table.resx">
-      <DependentUpon>time table.cs</DependentUpon>
     </EmbeddedResource>
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">

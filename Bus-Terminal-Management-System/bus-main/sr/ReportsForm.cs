@@ -2,14 +2,17 @@
 using System.Data;
 using System.Drawing;
 using System.Drawing.Printing;
+using System.Net.Http;
+using System.Threading.Tasks;
 using System.Windows.Forms;
-using MySql.Data.MySqlClient;
+using Newtonsoft.Json.Linq;
 
 namespace sr
 {
     public partial class ReportsForm : Form
     {
-        string connectionString = "server=localhost;user id=root;password=;database=sr_db;";
+        private readonly HttpClient client = new HttpClient();
+        private readonly string apiBaseUrl = "http://localhost:3000/api";
 
         PrintDocument printDocument = new PrintDocument();
         int printRowIndex = 0;
@@ -39,276 +42,472 @@ namespace sr
             lblReportTitle.Text = "Report Type: None";
         }
 
-        private void GenerateReport()
+        private async Task<JArray> GetArrayFromApi(string endpoint, string arrayName)
         {
-            if (cmbReportType.Text == "Daily Bookings")
-                LoadDailyBookings();
-            else if (cmbReportType.Text == "Cancelled Bookings")
-                LoadCancelledBookings();
-            else if (cmbReportType.Text == "Completed Trips")
-                LoadCompletedTrips();
-            else if (cmbReportType.Text == "Revenue Report")
-                LoadRevenueReport();
-            else if (cmbReportType.Text == "Passenger Manifest")
-                LoadPassengerManifest();
-            else if (cmbReportType.Text == "Trip Report")
-                LoadTripReport();
+            HttpResponseMessage response = await client.GetAsync(apiBaseUrl + endpoint);
+            string responseBody = await response.Content.ReadAsStringAsync();
+
+            JObject result = JObject.Parse(responseBody);
+
+            if (!response.IsSuccessStatusCode || result["success"]?.ToObject<bool>() != true)
+            {
+                string message = result["message"]?.ToString() ?? "API request failed.";
+                throw new Exception(message);
+            }
+
+            return (JArray)result[arrayName];
         }
 
-        private void LoadDailyBookings()
+        private DateTime? ParseDate(string value)
+        {
+            DateTime date;
+
+            if (DateTime.TryParse(value, out date))
+            {
+                return date.Date;
+            }
+
+            return null;
+        }
+
+        private bool IsDateInRange(string dateValue)
+        {
+            DateTime? date = ParseDate(dateValue);
+
+            if (date == null)
+            {
+                return false;
+            }
+
+            return date.Value >= dtpFrom.Value.Date && date.Value <= dtpTo.Value.Date;
+        }
+
+        private string FormatDate(string value)
+        {
+            DateTime date;
+
+            if (DateTime.TryParse(value, out date))
+            {
+                return date.ToString("yyyy-MM-dd");
+            }
+
+            return value ?? "";
+        }
+
+        private async Task GenerateReport()
+        {
+            if (cmbReportType.Text == "Daily Bookings")
+                await LoadDailyBookings();
+            else if (cmbReportType.Text == "Cancelled Bookings")
+                await LoadCancelledBookings();
+            else if (cmbReportType.Text == "Completed Trips")
+                await LoadCompletedTrips();
+            else if (cmbReportType.Text == "Revenue Report")
+                await LoadRevenueReport();
+            else if (cmbReportType.Text == "Passenger Manifest")
+                await LoadPassengerManifest();
+            else if (cmbReportType.Text == "Trip Report")
+                await LoadTripReport();
+        }
+
+        private async Task LoadDailyBookings()
         {
             try
             {
-                string query = @"
-                    SELECT
-                        bk.booking_id AS 'Booking ID',
-                        bk.passenger_name AS 'Passenger Name',
-                        bk.phone AS 'Phone',
-                        CONCAT(r.origin, ' → ', r.destination) AS 'Route',
-                        b.bus_number AS 'Bus',
-                        bk.seat_no AS 'Seat No',
-                        s.departure_date AS 'Travel Date',
-                        s.departure_time AS 'Departure Time',
-                        bk.payment_status AS 'Payment Status',
-                        bk.reservation_status AS 'Reservation Status',
-                        bk.created_at AS 'Date Booked'
-                    FROM bookings bk
-                    INNER JOIN schedules s ON bk.schedule_id = s.schedule_id
-                    INNER JOIN buses b ON s.bus_id = b.bus_id
-                    INNER JOIN routes r ON s.route_id = r.route_id
-                    WHERE DATE(bk.created_at) BETWEEN @fromDate AND @toDate
-                    ORDER BY bk.created_at DESC";
+                JArray bookings = await GetArrayFromApi("/bookings", "bookings");
 
-                LoadData(query, false);
+                DataTable dt = new DataTable();
+                dt.Columns.Add("Booking ID");
+                dt.Columns.Add("Passenger Name");
+                dt.Columns.Add("Phone");
+                dt.Columns.Add("Route");
+                dt.Columns.Add("Bus");
+                dt.Columns.Add("Seat No");
+                dt.Columns.Add("Travel Date");
+                dt.Columns.Add("Departure Time");
+                dt.Columns.Add("Payment Status");
+                dt.Columns.Add("Reservation Status");
+                dt.Columns.Add("Date Booked");
+
+                foreach (JObject booking in bookings)
+                {
+                    string createdAt = booking["created_at"]?.ToString() ?? "";
+
+                    if (!IsDateInRange(createdAt))
+                    {
+                        continue;
+                    }
+
+                    string origin = booking["origin"]?.ToString() ?? "";
+                    string destination = booking["destination"]?.ToString() ?? "";
+
+                    dt.Rows.Add(
+                        booking["booking_id"]?.ToString() ?? "",
+                        booking["passenger_name"]?.ToString() ?? "",
+                        booking["phone"]?.ToString() ?? "",
+                        origin + " → " + destination,
+                        booking["bus_number"]?.ToString() ?? "",
+                        booking["seat_no"]?.ToString() ?? "",
+                        FormatDate(booking["departure_date"]?.ToString()),
+                        booking["departure_time"]?.ToString() ?? "",
+                        booking["payment_status"]?.ToString() ?? "",
+                        booking["reservation_status"]?.ToString() ?? "",
+                        FormatDate(createdAt)
+                    );
+                }
+
+                ShowReport(dt, false);
                 lblReportTitle.Text = "Report Type: Daily Bookings";
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error loading daily bookings report: " + ex.Message);
+                MessageBox.Show("Error loading daily bookings report from API:\n" + ex.Message);
             }
         }
 
-        private void LoadCancelledBookings()
+        private async Task LoadCancelledBookings()
         {
             try
             {
-                string query = @"
-                    SELECT
-                        bk.booking_id AS 'Booking ID',
-                        bk.passenger_name AS 'Passenger Name',
-                        bk.phone AS 'Phone',
-                        CONCAT(r.origin, ' → ', r.destination) AS 'Route',
-                        b.bus_number AS 'Bus',
-                        bk.seat_no AS 'Seat No',
-                        s.departure_date AS 'Travel Date',
-                        bk.payment_status AS 'Payment Status',
-                        bk.reservation_status AS 'Reservation Status',
-                        bk.created_at AS 'Date Booked'
-                    FROM bookings bk
-                    INNER JOIN schedules s ON bk.schedule_id = s.schedule_id
-                    INNER JOIN buses b ON s.bus_id = b.bus_id
-                    INNER JOIN routes r ON s.route_id = r.route_id
-                    WHERE bk.reservation_status = 'Cancelled'
-                    AND DATE(bk.created_at) BETWEEN @fromDate AND @toDate
-                    ORDER BY bk.created_at DESC";
+                JArray bookings = await GetArrayFromApi("/bookings", "bookings");
 
-                LoadData(query, false);
+                DataTable dt = new DataTable();
+                dt.Columns.Add("Booking ID");
+                dt.Columns.Add("Passenger Name");
+                dt.Columns.Add("Phone");
+                dt.Columns.Add("Route");
+                dt.Columns.Add("Bus");
+                dt.Columns.Add("Seat No");
+                dt.Columns.Add("Travel Date");
+                dt.Columns.Add("Payment Status");
+                dt.Columns.Add("Reservation Status");
+                dt.Columns.Add("Date Booked");
+
+                foreach (JObject booking in bookings)
+                {
+                    string status = booking["reservation_status"]?.ToString() ?? "";
+                    string createdAt = booking["created_at"]?.ToString() ?? "";
+
+                    if (status != "Cancelled" || !IsDateInRange(createdAt))
+                    {
+                        continue;
+                    }
+
+                    string origin = booking["origin"]?.ToString() ?? "";
+                    string destination = booking["destination"]?.ToString() ?? "";
+
+                    dt.Rows.Add(
+                        booking["booking_id"]?.ToString() ?? "",
+                        booking["passenger_name"]?.ToString() ?? "",
+                        booking["phone"]?.ToString() ?? "",
+                        origin + " → " + destination,
+                        booking["bus_number"]?.ToString() ?? "",
+                        booking["seat_no"]?.ToString() ?? "",
+                        FormatDate(booking["departure_date"]?.ToString()),
+                        booking["payment_status"]?.ToString() ?? "",
+                        booking["reservation_status"]?.ToString() ?? "",
+                        FormatDate(createdAt)
+                    );
+                }
+
+                ShowReport(dt, false);
                 lblReportTitle.Text = "Report Type: Cancelled Bookings";
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error loading cancelled bookings report: " + ex.Message);
+                MessageBox.Show("Error loading cancelled bookings report from API:\n" + ex.Message);
             }
         }
 
-        private void LoadCompletedTrips()
+        private async Task LoadCompletedTrips()
         {
             try
             {
-                string query = @"
-                    SELECT
-                        s.schedule_id AS 'Trip ID',
-                        b.bus_number AS 'Bus',
-                        CONCAT(r.origin, ' → ', r.destination) AS 'Route',
-                        s.departure_date AS 'Departure Date',
-                        s.departure_time AS 'Departure Time',
-                        s.arrival_time AS 'Arrival Time',
-                        s.fare AS 'Fare',
-                        s.available_seats AS 'Available Seats',
-                        s.trip_status AS 'Trip Status'
-                    FROM schedules s
-                    INNER JOIN buses b ON s.bus_id = b.bus_id
-                    INNER JOIN routes r ON s.route_id = r.route_id
-                    WHERE s.trip_status = 'Arrived'
-                    AND s.departure_date BETWEEN @fromDate AND @toDate
-                    ORDER BY s.departure_date DESC, s.departure_time DESC";
+                JArray schedules = await GetArrayFromApi("/admin/schedules", "schedules");
 
-                LoadData(query, false);
+                DataTable dt = new DataTable();
+                dt.Columns.Add("Trip ID");
+                dt.Columns.Add("Bus");
+                dt.Columns.Add("Route");
+                dt.Columns.Add("Departure Date");
+                dt.Columns.Add("Departure Time");
+                dt.Columns.Add("Arrival Time");
+                dt.Columns.Add("Fare");
+                dt.Columns.Add("Available Seats");
+                dt.Columns.Add("Trip Status");
+
+                foreach (JObject schedule in schedules)
+                {
+                    string tripStatus = schedule["trip_status"]?.ToString() ?? "";
+                    string departureDate = schedule["departure_date"]?.ToString() ?? "";
+
+                    if ((tripStatus != "Arrived" && tripStatus != "Completed") || !IsDateInRange(departureDate))
+                    {
+                        continue;
+                    }
+
+                    string origin = schedule["origin"]?.ToString() ?? "";
+                    string destination = schedule["destination"]?.ToString() ?? "";
+
+                    dt.Rows.Add(
+                        schedule["schedule_id"]?.ToString() ?? "",
+                        schedule["bus_number"]?.ToString() ?? "",
+                        origin + " → " + destination,
+                        FormatDate(departureDate),
+                        schedule["departure_time"]?.ToString() ?? "",
+                        schedule["arrival_time"]?.ToString() ?? "",
+                        schedule["fare"]?.ToString() ?? "",
+                        schedule["available_seats"]?.ToString() ?? "",
+                        tripStatus
+                    );
+                }
+
+                ShowReport(dt, false);
                 lblReportTitle.Text = "Report Type: Completed Trips";
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error loading completed trips report: " + ex.Message);
+                MessageBox.Show("Error loading completed trips report from API:\n" + ex.Message);
             }
         }
 
-        private void LoadRevenueReport()
+        private async Task LoadRevenueReport()
         {
             try
             {
-                string query = @"
-                    SELECT
-                        p.payment_id AS 'Payment ID',
-                        bk.booking_id AS 'Booking ID',
-                        bk.passenger_name AS 'Passenger Name',
-                        CONCAT(r.origin, ' → ', r.destination) AS 'Route',
-                        b.bus_number AS 'Bus',
-                        bk.seat_no AS 'Seat No',
-                        p.amount AS 'Amount',
-                        p.payment_method AS 'Payment Method',
-                        p.reference_no AS 'Reference No',
-                        p.payment_status AS 'Payment Status',
-                        p.paid_at AS 'Date Paid'
-                    FROM payments p
-                    INNER JOIN bookings bk ON p.booking_id = bk.booking_id
-                    INNER JOIN schedules s ON bk.schedule_id = s.schedule_id
-                    INNER JOIN buses b ON s.bus_id = b.bus_id
-                    INNER JOIN routes r ON s.route_id = r.route_id
-                    WHERE p.payment_status = 'Paid'
-                    AND DATE(p.paid_at) BETWEEN @fromDate AND @toDate
-                    ORDER BY p.paid_at DESC";
+                JArray bookings = await GetArrayFromApi("/bookings", "bookings");
 
-                LoadData(query, true);
+                DataTable dt = new DataTable();
+                dt.Columns.Add("Payment ID");
+                dt.Columns.Add("Booking ID");
+                dt.Columns.Add("Passenger Name");
+                dt.Columns.Add("Route");
+                dt.Columns.Add("Bus");
+                dt.Columns.Add("Seat No");
+                dt.Columns.Add("Amount");
+                dt.Columns.Add("Payment Method");
+                dt.Columns.Add("Reference No");
+                dt.Columns.Add("Payment Status");
+                dt.Columns.Add("Date Paid");
+
+                foreach (JObject booking in bookings)
+                {
+                    string paymentStatus = booking["payment_record_status"]?.ToString();
+
+                    if (string.IsNullOrWhiteSpace(paymentStatus))
+                    {
+                        paymentStatus = booking["payment_status"]?.ToString() ?? "";
+                    }
+
+                    string paidAt = booking["paid_at"]?.ToString() ?? "";
+
+                    if (paymentStatus != "Paid" || !IsDateInRange(paidAt))
+                    {
+                        continue;
+                    }
+
+                    string origin = booking["origin"]?.ToString() ?? "";
+                    string destination = booking["destination"]?.ToString() ?? "";
+
+                    dt.Rows.Add(
+                        booking["payment_id"]?.ToString() ?? "",
+                        booking["booking_id"]?.ToString() ?? "",
+                        booking["passenger_name"]?.ToString() ?? "",
+                        origin + " → " + destination,
+                        booking["bus_number"]?.ToString() ?? "",
+                        booking["seat_no"]?.ToString() ?? "",
+                        booking["total_amount"]?.ToString() ?? "0",
+                        booking["payment_method"]?.ToString() ?? "",
+                        booking["reference_no"]?.ToString() ?? "",
+                        paymentStatus,
+                        FormatDate(paidAt)
+                    );
+                }
+
+                ShowReport(dt, true);
                 lblReportTitle.Text = "Report Type: Revenue Report";
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error loading revenue report: " + ex.Message);
+                MessageBox.Show("Error loading revenue report from API:\n" + ex.Message);
             }
         }
 
-        private void LoadPassengerManifest()
+        private async Task LoadPassengerManifest()
         {
             try
             {
-                string query = @"
-                    SELECT
-                        s.schedule_id AS 'Trip ID',
-                        b.bus_number AS 'Bus',
-                        CONCAT(r.origin, ' → ', r.destination) AS 'Route',
-                        s.departure_date AS 'Travel Date',
-                        s.departure_time AS 'Departure Time',
-                        bk.seat_no AS 'Seat No',
-                        bk.passenger_name AS 'Passenger Name',
-                        bk.phone AS 'Phone',
-                        bk.payment_status AS 'Payment Status',
-                        bk.reservation_status AS 'Reservation Status',
-                        bk.checkin_status AS 'Check-in Status',
-                        bk.boarding_status AS 'Boarding Status'
-                    FROM bookings bk
-                    INNER JOIN schedules s ON bk.schedule_id = s.schedule_id
-                    INNER JOIN buses b ON s.bus_id = b.bus_id
-                    INNER JOIN routes r ON s.route_id = r.route_id
-                    WHERE s.departure_date BETWEEN @fromDate AND @toDate
-                    AND bk.reservation_status != 'Cancelled'
-                    ORDER BY s.departure_date ASC, s.departure_time ASC, bk.seat_no ASC";
+                JArray bookings = await GetArrayFromApi("/bookings", "bookings");
 
-                LoadData(query, false);
+                DataTable dt = new DataTable();
+                dt.Columns.Add("Trip ID");
+                dt.Columns.Add("Bus");
+                dt.Columns.Add("Route");
+                dt.Columns.Add("Travel Date");
+                dt.Columns.Add("Departure Time");
+                dt.Columns.Add("Seat No");
+                dt.Columns.Add("Passenger Name");
+                dt.Columns.Add("Phone");
+                dt.Columns.Add("Payment Status");
+                dt.Columns.Add("Reservation Status");
+                dt.Columns.Add("Check-in Status");
+                dt.Columns.Add("Boarding Status");
+
+                foreach (JObject booking in bookings)
+                {
+                    string reservationStatus = booking["reservation_status"]?.ToString() ?? "";
+                    string departureDate = booking["departure_date"]?.ToString() ?? "";
+
+                    if (reservationStatus == "Cancelled" || !IsDateInRange(departureDate))
+                    {
+                        continue;
+                    }
+
+                    string origin = booking["origin"]?.ToString() ?? "";
+                    string destination = booking["destination"]?.ToString() ?? "";
+
+                    dt.Rows.Add(
+                        booking["schedule_id"]?.ToString() ?? "",
+                        booking["bus_number"]?.ToString() ?? "",
+                        origin + " → " + destination,
+                        FormatDate(departureDate),
+                        booking["departure_time"]?.ToString() ?? "",
+                        booking["seat_no"]?.ToString() ?? "",
+                        booking["passenger_name"]?.ToString() ?? "",
+                        booking["phone"]?.ToString() ?? "",
+                        booking["payment_status"]?.ToString() ?? "",
+                        reservationStatus,
+                        booking["checkin_status"]?.ToString() ?? "",
+                        booking["boarding_status"]?.ToString() ?? ""
+                    );
+                }
+
+                ShowReport(dt, false);
                 lblReportTitle.Text = "Report Type: Passenger Manifest";
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error loading passenger manifest: " + ex.Message);
+                MessageBox.Show("Error loading passenger manifest from API:\n" + ex.Message);
             }
         }
 
-        private void LoadTripReport()
+        private async Task LoadTripReport()
         {
             try
             {
-                string query = @"
-                    SELECT
-                        s.schedule_id AS 'Trip ID',
-                        b.bus_number AS 'Bus',
-                        b.plate_number AS 'Plate Number',
-                        CONCAT(r.origin, ' → ', r.destination) AS 'Route',
-                        s.departure_date AS 'Departure Date',
-                        s.departure_time AS 'Departure Time',
-                        s.arrival_time AS 'Arrival Time',
-                        s.fare AS 'Fare',
-                        s.available_seats AS 'Available Seats',
-                        s.trip_status AS 'Trip Status',
-                        COUNT(bk.booking_id) AS 'Total Bookings',
-                        SUM(CASE WHEN bk.boarding_status = 'Boarded' THEN 1 ELSE 0 END) AS 'Boarded Passengers',
-                        SUM(CASE WHEN bk.boarding_status = 'No-show' THEN 1 ELSE 0 END) AS 'No-show Passengers'
-                    FROM schedules s
-                    INNER JOIN buses b ON s.bus_id = b.bus_id
-                    INNER JOIN routes r ON s.route_id = r.route_id
-                    LEFT JOIN bookings bk ON s.schedule_id = bk.schedule_id
-                    WHERE s.departure_date BETWEEN @fromDate AND @toDate
-                    GROUP BY 
-                        s.schedule_id,
-                        b.bus_number,
-                        b.plate_number,
-                        r.origin,
-                        r.destination,
-                        s.departure_date,
-                        s.departure_time,
-                        s.arrival_time,
-                        s.fare,
-                        s.available_seats,
-                        s.trip_status
-                    ORDER BY s.departure_date DESC, s.departure_time DESC";
+                JArray schedules = await GetArrayFromApi("/admin/schedules", "schedules");
+                JArray bookings = await GetArrayFromApi("/bookings", "bookings");
 
-                LoadData(query, false);
+                DataTable dt = new DataTable();
+                dt.Columns.Add("Trip ID");
+                dt.Columns.Add("Bus");
+                dt.Columns.Add("Plate Number");
+                dt.Columns.Add("Route");
+                dt.Columns.Add("Departure Date");
+                dt.Columns.Add("Departure Time");
+                dt.Columns.Add("Arrival Time");
+                dt.Columns.Add("Fare");
+                dt.Columns.Add("Available Seats");
+                dt.Columns.Add("Trip Status");
+                dt.Columns.Add("Total Bookings");
+                dt.Columns.Add("Boarded Passengers");
+                dt.Columns.Add("No-show Passengers");
+
+                foreach (JObject schedule in schedules)
+                {
+                    string departureDate = schedule["departure_date"]?.ToString() ?? "";
+
+                    if (!IsDateInRange(departureDate))
+                    {
+                        continue;
+                    }
+
+                    int scheduleId = schedule["schedule_id"]?.ToObject<int>() ?? 0;
+                    int totalBookings = 0;
+                    int boardedPassengers = 0;
+                    int noShowPassengers = 0;
+
+                    foreach (JObject booking in bookings)
+                    {
+                        int bookingScheduleId = booking["schedule_id"]?.ToObject<int>() ?? 0;
+
+                        if (bookingScheduleId == scheduleId)
+                        {
+                            totalBookings++;
+
+                            string boardingStatus = booking["boarding_status"]?.ToString() ?? "";
+
+                            if (boardingStatus == "Boarded")
+                            {
+                                boardedPassengers++;
+                            }
+                            else if (boardingStatus == "No-show")
+                            {
+                                noShowPassengers++;
+                            }
+                        }
+                    }
+
+                    string origin = schedule["origin"]?.ToString() ?? "";
+                    string destination = schedule["destination"]?.ToString() ?? "";
+
+                    dt.Rows.Add(
+                        scheduleId.ToString(),
+                        schedule["bus_number"]?.ToString() ?? "",
+                        schedule["plate_number"]?.ToString() ?? "",
+                        origin + " → " + destination,
+                        FormatDate(departureDate),
+                        schedule["departure_time"]?.ToString() ?? "",
+                        schedule["arrival_time"]?.ToString() ?? "",
+                        schedule["fare"]?.ToString() ?? "",
+                        schedule["available_seats"]?.ToString() ?? "",
+                        schedule["trip_status"]?.ToString() ?? "",
+                        totalBookings.ToString(),
+                        boardedPassengers.ToString(),
+                        noShowPassengers.ToString()
+                    );
+                }
+
+                ShowReport(dt, false);
                 lblReportTitle.Text = "Report Type: Trip Report";
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error loading trip report: " + ex.Message);
+                MessageBox.Show("Error loading trip report from API:\n" + ex.Message);
             }
         }
 
-        private void LoadData(string query, bool computeRevenue)
+        private void ShowReport(DataTable dt, bool computeRevenue)
         {
-            using (MySqlConnection conn = new MySqlConnection(connectionString))
+            dgvReports.DataSource = dt;
+            lblTotalRecords.Text = "Total Records: " + dt.Rows.Count;
+
+            if (computeRevenue)
             {
-                conn.Open();
+                decimal totalRevenue = 0;
 
-                using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                foreach (DataRow row in dt.Rows)
                 {
-                    cmd.Parameters.AddWithValue("@fromDate", dtpFrom.Value.Date);
-                    cmd.Parameters.AddWithValue("@toDate", dtpTo.Value.Date);
-
-                    MySqlDataAdapter adapter = new MySqlDataAdapter(cmd);
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
-
-                    dgvReports.DataSource = dt;
-
-                    lblTotalRecords.Text = "Total Records: " + dt.Rows.Count;
-
-                    if (computeRevenue)
+                    if (dt.Columns.Contains("Amount") && row["Amount"] != DBNull.Value)
                     {
-                        decimal totalRevenue = 0;
+                        decimal amount;
 
-                        foreach (DataRow row in dt.Rows)
+                        if (decimal.TryParse(row["Amount"].ToString(), out amount))
                         {
-                            if (row["Amount"] != DBNull.Value)
-                                totalRevenue += Convert.ToDecimal(row["Amount"]);
+                            totalRevenue += amount;
                         }
-
-                        lblTotalRevenue.Text = "Total Revenue: " + totalRevenue.ToString("0.00");
-                    }
-                    else
-                    {
-                        lblTotalRevenue.Text = "Total Revenue: 0.00";
                     }
                 }
+
+                lblTotalRevenue.Text = "Total Revenue: " + totalRevenue.ToString("0.00");
+            }
+            else
+            {
+                lblTotalRevenue.Text = "Total Revenue: 0.00";
             }
         }
 
-        private void btnGenerate_Click(object sender, EventArgs e)
+        private async void btnGenerate_Click(object sender, EventArgs e)
         {
             if (dtpFrom.Value.Date > dtpTo.Value.Date)
             {
@@ -316,7 +515,7 @@ namespace sr
                 return;
             }
 
-            GenerateReport();
+            await GenerateReport();
         }
 
         private void btnRefresh_Click(object sender, EventArgs e)
