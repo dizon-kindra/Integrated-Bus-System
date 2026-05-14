@@ -13,6 +13,7 @@ const profileRoutes = require('./routes/profileRoutes');
 const busRoutes = require('./routes/busRoutes');
 const routeRoutes = require('./routes/routeRoutes');
 const scheduleRoutes = require('./routes/scheduleRoutes');
+const ticketRoutes = require('./routes/ticketRoutes');
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use('/api', profileRoutes);
 app.use('/api', busRoutes);
 app.use('/api', routeRoutes);
 app.use('/api', scheduleRoutes);
+app.use('/api', ticketRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
