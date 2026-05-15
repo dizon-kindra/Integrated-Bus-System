@@ -1,5 +1,4 @@
 <?php
-
 require_once(__DIR__ . '/inc/essentials.php');
 
 if (session_status() === PHP_SESSION_NONE) {
@@ -154,9 +153,9 @@ if (isset($_GET['view']) && $_GET['view'] == 'all') {
             return 'N/A';
         }
 
-        let parts = timeValue.split(':');
+        let parts = String(timeValue).split(':');
         let hour = parseInt(parts[0]);
-        let minute = parts[1];
+        let minute = parts[1] || '00';
 
         let ampm = hour >= 12 ? 'PM' : 'AM';
         hour = hour % 12;
@@ -170,6 +169,25 @@ if (isset($_GET['view']) && $_GET['view'] == 'all') {
             return 'N/A';
         }
 
+        const dateString = String(dateValue).split('T')[0];
+        const parts = dateString.split('-');
+
+        if (parts.length === 3) {
+            const year = parseInt(parts[0]);
+            const month = parseInt(parts[1]) - 1;
+            const day = parseInt(parts[2]);
+
+            const dateObj = new Date(year, month, day);
+
+            if (!isNaN(dateObj.getTime())) {
+                return dateObj.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: '2-digit'
+                });
+            }
+        }
+
         const dateObj = new Date(dateValue);
 
         if (isNaN(dateObj.getTime())) {
@@ -181,6 +199,48 @@ if (isset($_GET['view']) && $_GET['view'] == 'all') {
             month: 'long',
             day: '2-digit'
         });
+    }
+
+    function showFillMessage() {
+        bus_data.innerHTML = `
+            <div class="bg-white rounded shadow p-4 text-center">
+                <h4 class="text-danger mb-2">Please fill the trip information.</h4>
+                <p class="text-muted mb-3">Enter source, destination, and travel date.</p>
+                <button class="btn btn-dark shadow-none" onclick="view_all_trips()">
+                    <i class="bi bi-list-ul me-1"></i> View All Available Trips
+                </button>
+            </div>
+        `;
+    }
+
+    function updateSearchUrl() {
+        const params = new URLSearchParams();
+
+        params.set('source', source.value.trim());
+        params.set('destination', destination.value.trim());
+        params.set('date', date.value);
+
+        window.history.pushState({}, '', 'bus.php?' + params.toString());
+    }
+
+    function loadFiltersFromUrl() {
+        const urlParams = new URLSearchParams(window.location.search);
+
+        const sourceParam = urlParams.get('source');
+        const destinationParam = urlParams.get('destination');
+        const dateParam = urlParams.get('date');
+
+        if (sourceParam) {
+            source.value = sourceParam;
+        }
+
+        if (destinationParam) {
+            destination.value = destinationParam;
+        }
+
+        if (dateParam) {
+            date.value = dateParam;
+        }
     }
 
     function renderTrips(data) {
@@ -220,6 +280,13 @@ if (isset($_GET['view']) && $_GET['view'] == 'all') {
                     Showing all available trips from the terminal schedule.
                 </div>
             `;
+        } else {
+            html += `
+                <div class="alert alert-info shadow-sm">
+                    Showing trips for <strong>${source.value}</strong> to <strong>${destination.value}</strong>
+                    on <strong>${formatDate(date.value)}</strong>.
+                </div>
+            `;
         }
 
         data.trips.forEach(trip => {
@@ -241,7 +308,7 @@ if (isset($_GET['view']) && $_GET['view'] == 'all') {
                 `;
             } else if (isLoggedIn) {
                 bookButton = `
-                    <a href="confirm_booking.php?schedule_id=${trip.schedule_id}&passengers=${passengerCount}" 
+                    <a href="confirm_booking.php?schedule_id=${trip.schedule_id}" 
                        class="btn btn-sm text-white custom-bg shadow-none">
                         Book Now
                     </a>
@@ -331,15 +398,7 @@ if (isset($_GET['view']) && $_GET['view'] == 'all') {
         viewAllMode = false;
 
         if (source.value.trim() === '' || destination.value.trim() === '' || date.value === '') {
-            bus_data.innerHTML = `
-                <div class="bg-white rounded shadow p-4 text-center">
-                    <h4 class="text-danger mb-2">Please fill the trip information.</h4>
-                    <p class="text-muted mb-3">Enter source, destination, and travel date.</p>
-                    <button class="btn btn-dark shadow-none" onclick="view_all_trips()">
-                        <i class="bi bi-list-ul me-1"></i> View All Available Trips
-                    </button>
-                </div>
-            `;
+            showFillMessage();
             return;
         }
 
@@ -430,6 +489,7 @@ if (isset($_GET['view']) && $_GET['view'] == 'all') {
             chk_avail_btn.classList.add('d-none');
         } else {
             chk_avail_btn.classList.remove('d-none');
+            updateSearchUrl();
             fetch_bus();
         }
     }
@@ -440,6 +500,8 @@ if (isset($_GET['view']) && $_GET['view'] == 'all') {
         date.value = '';
 
         chk_avail_btn.classList.add('d-none');
+
+        window.history.pushState({}, '', 'bus.php');
 
         bus_data.innerHTML = `
             <div class="bg-white rounded shadow p-4 text-center">
@@ -453,10 +515,19 @@ if (isset($_GET['view']) && $_GET['view'] == 'all') {
     }
 
     window.onload = function () {
+        loadFiltersFromUrl();
+
         if (viewAllMode) {
             fetch_all_trips();
-        } else {
+        } else if (
+            source.value.trim() !== '' &&
+            destination.value.trim() !== '' &&
+            date.value !== ''
+        ) {
+            chk_avail_btn.classList.remove('d-none');
             fetch_bus();
+        } else {
+            showFillMessage();
         }
     };
 </script>
