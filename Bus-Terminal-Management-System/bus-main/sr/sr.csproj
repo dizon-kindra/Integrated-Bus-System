@@ -218,12 +218,6 @@
     <Compile Include="BusManagementForm.Designer.cs">
       <DependentUpon>BusManagementForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="CheckInBoardingForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="CheckInBoardingForm.Designer.cs">
-      <DependentUpon>CheckInBoardingForm.cs</DependentUpon>
-    </Compile>
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -235,12 +229,6 @@
     </Compile>
     <Compile Include="login.Designer.cs">
       <DependentUpon>login.cs</DependentUpon>
-    </Compile>
-    <Compile Include="PaymentConfirmationForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="PaymentConfirmationForm.Designer.cs">
-      <DependentUpon>PaymentConfirmationForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -274,17 +262,11 @@
     <EmbeddedResource Include="BusManagementForm.resx">
       <DependentUpon>BusManagementForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="CheckInBoardingForm.resx">
-      <DependentUpon>CheckInBoardingForm.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="Form1.resx">
       <DependentUpon>Form1.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="login.resx">
       <DependentUpon>login.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="PaymentConfirmationForm.resx">
-      <DependentUpon>PaymentConfirmationForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\licenses.licx" />
     <EmbeddedResource Include="Properties\Resources.resx">
