@@ -26,11 +26,11 @@ namespace sr
         private Button btnScheduleManagement;
         private Button btnReservationManagement;
 
-        // Hidden duplicate modules
+        // Hidden duplicate modules.
+        // Payment Confirmation and Check-in / Boarding are now handled inside ReservationManagementForm.
         private Button btnPaymentConfirmation;
         private Button btnCheckInBoarding;
 
-        // Reports remains visible
         private Button btnReports;
         private Button btnLogout;
 
@@ -43,7 +43,7 @@ namespace sr
 
         private void AdminDashboardForm_Load(object sender, EventArgs e)
         {
-            // Empty load event
+            // Empty load event.
         }
 
         private void CreateDashboardDesign()
@@ -117,7 +117,6 @@ namespace sr
             btnReservationManagement.Click += btnReservationManagement_Click;
             panelSidebar.Controls.Add(btnReservationManagement);
 
-            // Keep these as hidden backup buttons only
             btnPaymentConfirmation = CreateSidebarButton("Payment Confirmation", startY + (buttonHeight + buttonGap) * 5);
             btnPaymentConfirmation.Click += btnPaymentConfirmation_Click;
             btnPaymentConfirmation.Visible = false;
@@ -128,7 +127,6 @@ namespace sr
             btnCheckInBoarding.Visible = false;
             panelSidebar.Controls.Add(btnCheckInBoarding);
 
-            // Reports moved up because Payment Confirmation and Check-in / Boarding are hidden
             btnReports = CreateSidebarButton("Reports", startY + (buttonHeight + buttonGap) * 5);
             btnReports.Click += btnReports_Click;
             panelSidebar.Controls.Add(btnReports);
