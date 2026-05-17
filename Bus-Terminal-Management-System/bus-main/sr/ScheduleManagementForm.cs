@@ -21,10 +21,13 @@ namespace sr
 
         private async void ScheduleManagementForm_Load(object sender, EventArgs e)
         {
-            dtpDepartureTime.Format = DateTimePickerFormat.Time;
+            // Time format without seconds: 03:10 PM
+            dtpDepartureTime.Format = DateTimePickerFormat.Custom;
+            dtpDepartureTime.CustomFormat = "hh:mm tt";
             dtpDepartureTime.ShowUpDown = true;
 
-            dtpArrivalTime.Format = DateTimePickerFormat.Time;
+            dtpArrivalTime.Format = DateTimePickerFormat.Custom;
+            dtpArrivalTime.CustomFormat = "hh:mm tt";
             dtpArrivalTime.ShowUpDown = true;
 
             cmbTripStatus.Items.Clear();
@@ -189,8 +192,8 @@ namespace sr
                         schedule["bus_number"]?.ToString() ?? "",
                         origin + " → " + destination,
                         FormatDate(schedule["departure_date"]?.ToString()),
-                        schedule["departure_time"]?.ToString() ?? "",
-                        schedule["arrival_time"]?.ToString() ?? "",
+                        FormatTime(schedule["departure_time"]?.ToString()),
+                        FormatTime(schedule["arrival_time"]?.ToString()),
                         schedule["fare"]?.ToObject<decimal>() ?? 0,
                         schedule["available_seats"]?.ToObject<int>() ?? 0,
                         schedule["trip_status"]?.ToString() ?? "",
@@ -230,6 +233,28 @@ namespace sr
             }
 
             return value ?? "";
+        }
+
+        private string FormatTime(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return "";
+
+            DateTime time;
+
+            if (DateTime.TryParse(value, out time))
+            {
+                return time.ToString("hh:mm tt");
+            }
+
+            TimeSpan timeSpan;
+
+            if (TimeSpan.TryParse(value, out timeSpan))
+            {
+                return DateTime.Today.Add(timeSpan).ToString("hh:mm tt");
+            }
+
+            return value;
         }
 
         private int GetSelectedBusCapacity()
@@ -386,8 +411,11 @@ namespace sr
                     bus_id = Convert.ToInt32(cmbBus.SelectedValue),
                     route_id = Convert.ToInt32(cmbRoute.SelectedValue),
                     departure_date = dtpDepartureDate.Value.ToString("yyyy-MM-dd"),
-                    departure_time = dtpDepartureTime.Value.ToString("HH:mm:ss"),
-                    arrival_time = dtpArrivalTime.Value.ToString("HH:mm:ss"),
+
+                    // Save to API/database as 03:10 PM, no seconds
+                    departure_time = dtpDepartureTime.Value.ToString("hh:mm tt"),
+                    arrival_time = dtpArrivalTime.Value.ToString("hh:mm tt"),
+
                     fare = Convert.ToDecimal(txtFare.Text.Trim()),
                     trip_status = cmbTripStatus.Text
                 };
@@ -438,8 +466,11 @@ namespace sr
                     bus_id = Convert.ToInt32(cmbBus.SelectedValue),
                     route_id = Convert.ToInt32(cmbRoute.SelectedValue),
                     departure_date = dtpDepartureDate.Value.ToString("yyyy-MM-dd"),
-                    departure_time = dtpDepartureTime.Value.ToString("HH:mm:ss"),
-                    arrival_time = dtpArrivalTime.Value.ToString("HH:mm:ss"),
+
+                    // Save to API/database as 03:10 PM, no seconds
+                    departure_time = dtpDepartureTime.Value.ToString("hh:mm tt"),
+                    arrival_time = dtpArrivalTime.Value.ToString("hh:mm tt"),
+
                     fare = Convert.ToDecimal(txtFare.Text.Trim()),
                     available_seats = Convert.ToInt32(txtAvailableSeats.Text.Trim()),
                     trip_status = cmbTripStatus.Text
@@ -556,17 +587,17 @@ namespace sr
                     dtpDepartureDate.Value = departureDate;
                 }
 
-                TimeSpan departureTime;
-                TimeSpan arrivalTime;
+                DateTime departureTime;
+                DateTime arrivalTime;
 
-                if (TimeSpan.TryParse(row.Cells["Departure Time"].Value.ToString(), out departureTime))
+                if (DateTime.TryParse(row.Cells["Departure Time"].Value.ToString(), out departureTime))
                 {
-                    dtpDepartureTime.Value = DateTime.Today.Add(departureTime);
+                    dtpDepartureTime.Value = departureTime;
                 }
 
-                if (TimeSpan.TryParse(row.Cells["Arrival Time"].Value.ToString(), out arrivalTime))
+                if (DateTime.TryParse(row.Cells["Arrival Time"].Value.ToString(), out arrivalTime))
                 {
-                    dtpArrivalTime.Value = DateTime.Today.Add(arrivalTime);
+                    dtpArrivalTime.Value = arrivalTime;
                 }
 
                 txtFare.Text = row.Cells["Fare"].Value.ToString();
