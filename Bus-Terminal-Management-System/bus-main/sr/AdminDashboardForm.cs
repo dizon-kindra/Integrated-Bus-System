@@ -26,8 +26,6 @@ namespace sr
         private Button btnScheduleManagement;
         private Button btnReservationManagement;
 
-        // Hidden duplicate modules.
-        // Payment Confirmation and Check-in / Boarding are now handled inside ReservationManagementForm.
         private Button btnPaymentConfirmation;
         private Button btnCheckInBoarding;
 
@@ -263,8 +261,6 @@ namespace sr
             childForm.Show();
         }
 
-        // ================= API HELPERS =================
-
         private async Task<JArray> GetArrayFromApi(string endpoint, string arrayName)
         {
             HttpResponseMessage response = await client.GetAsync(apiBaseUrl + endpoint);
@@ -280,8 +276,6 @@ namespace sr
 
             return (JArray)result[arrayName];
         }
-
-        // ================= DASHBOARD HOME =================
 
         private async Task ShowDashboardHomeAsync()
         {
@@ -353,7 +347,7 @@ namespace sr
             }
 
             Label lblDescription = new Label();
-            lblDescription.Text = "Monitor routes, buses, schedules, reservations, payments, boarding, and reports.";
+            lblDescription.Text = "Click a dashboard card to open the related management module.";
             lblDescription.Font = new Font("Segoe UI", 11F, FontStyle.Regular);
             lblDescription.ForeColor = Color.DimGray;
             lblDescription.AutoSize = true;
@@ -377,95 +371,116 @@ namespace sr
             };
             panelContent.Controls.Add(btnRefreshDashboard);
 
-            Panel cardRoutes = CreateStatCard("Total Routes", totalRoutes.ToString(), "Terminal routes", new Point(25, 90), Color.FromArgb(52, 152, 219));
-            Panel cardBuses = CreateStatCard("Total Buses", totalBuses.ToString(), "Registered buses", new Point(285, 90), Color.FromArgb(46, 204, 113));
-            Panel cardSchedules = CreateStatCard("Schedules", totalSchedules.ToString(), "Scheduled trips", new Point(545, 90), Color.FromArgb(155, 89, 182));
-            Panel cardReservations = CreateStatCard("Reservations", totalReservations.ToString(), "Passenger bookings", new Point(805, 90), Color.FromArgb(241, 196, 15));
+            FlowLayoutPanel dashboardCards = new FlowLayoutPanel();
+            dashboardCards.Location = new Point(25, 90);
+            dashboardCards.Size = new Size(panelContent.Width - 70, panelContent.Height - 130);
+            dashboardCards.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            dashboardCards.AutoScroll = true;
+            dashboardCards.WrapContents = true;
+            dashboardCards.FlowDirection = FlowDirection.LeftToRight;
+            dashboardCards.BackColor = Color.FromArgb(245, 247, 250);
+            dashboardCards.Padding = new Padding(0);
+            panelContent.Controls.Add(dashboardCards);
 
-            Panel cardPending = CreateStatCard("Pending Payments", pendingPayments.ToString(), "Needs confirmation", new Point(25, 250), Color.FromArgb(230, 126, 34));
-            Panel cardPaid = CreateStatCard("Paid Bookings", paidBookings.ToString(), "Confirmed payments", new Point(285, 250), Color.FromArgb(39, 174, 96));
-            Panel cardBoarded = CreateStatCard("Boarded", boardedPassengers.ToString(), "Boarded passengers", new Point(545, 250), Color.FromArgb(26, 188, 156));
-            Panel cardCancelled = CreateStatCard("Cancelled", cancelledBookings.ToString(), "Cancelled bookings", new Point(805, 250), Color.FromArgb(231, 76, 60));
+            dashboardCards.Controls.Add(
+                CreateStatCard(
+                    "Total Routes",
+                    totalRoutes.ToString(),
+                    "Click to manage routes",
+                    Color.FromArgb(52, 152, 219),
+                    btnRouteManagement_Click
+                )
+            );
 
-            Panel cardRevenue = CreateStatCard("Revenue", "₱" + totalRevenue.ToString("N2"), "Total paid amount", new Point(25, 410), Color.FromArgb(44, 62, 80));
+            dashboardCards.Controls.Add(
+                CreateStatCard(
+                    "Total Buses",
+                    totalBuses.ToString(),
+                    "Click to manage buses",
+                    Color.FromArgb(46, 204, 113),
+                    btnBusManagement_Click
+                )
+            );
 
-            panelContent.Controls.Add(cardRoutes);
-            panelContent.Controls.Add(cardBuses);
-            panelContent.Controls.Add(cardSchedules);
-            panelContent.Controls.Add(cardReservations);
-            panelContent.Controls.Add(cardPending);
-            panelContent.Controls.Add(cardPaid);
-            panelContent.Controls.Add(cardBoarded);
-            panelContent.Controls.Add(cardCancelled);
-            panelContent.Controls.Add(cardRevenue);
+            dashboardCards.Controls.Add(
+                CreateStatCard(
+                    "Schedules",
+                    totalSchedules.ToString(),
+                    "Click to manage schedules",
+                    Color.FromArgb(155, 89, 182),
+                    btnScheduleManagement_Click
+                )
+            );
 
-            Panel panelActivity = new Panel();
-            panelActivity.BackColor = Color.White;
-            panelActivity.BorderStyle = BorderStyle.FixedSingle;
-            panelActivity.Location = new Point(285, 410);
-            panelActivity.Size = new Size(520, 210);
-            panelContent.Controls.Add(panelActivity);
+            dashboardCards.Controls.Add(
+                CreateStatCard(
+                    "Reservations",
+                    totalReservations.ToString(),
+                    "Click to view reservations",
+                    Color.FromArgb(241, 196, 15),
+                    btnReservationManagement_Click
+                )
+            );
 
-            Label lblActivityTitle = new Label();
-            lblActivityTitle.Text = "Today's Activity";
-            lblActivityTitle.Font = new Font("Segoe UI", 16F, FontStyle.Bold);
-            lblActivityTitle.ForeColor = Color.FromArgb(32, 45, 64);
-            lblActivityTitle.AutoSize = true;
-            lblActivityTitle.Location = new Point(20, 18);
-            panelActivity.Controls.Add(lblActivityTitle);
+            dashboardCards.Controls.Add(
+                CreateStatCard(
+                    "Pending Payments",
+                    pendingPayments.ToString(),
+                    "Click to confirm payments",
+                    Color.FromArgb(230, 126, 34),
+                    btnReservationManagement_Click
+                )
+            );
 
-            Label lblActivity = new Label();
-            lblActivity.Text =
-                "• " + totalSchedules + " scheduled trip(s) available\n" +
-                "• " + totalReservations + " total passenger reservation(s)\n" +
-                "• " + pendingPayments + " booking(s) still pending payment\n" +
-                "• " + boardedPassengers + " passenger(s) already boarded\n" +
-                "• Revenue collected: ₱" + totalRevenue.ToString("N2");
-            lblActivity.Font = new Font("Segoe UI", 11F, FontStyle.Regular);
-            lblActivity.ForeColor = Color.DimGray;
-            lblActivity.AutoSize = true;
-            lblActivity.Location = new Point(25, 65);
-            panelActivity.Controls.Add(lblActivity);
+            dashboardCards.Controls.Add(
+                CreateStatCard(
+                    "Paid Bookings",
+                    paidBookings.ToString(),
+                    "Click to view paid bookings",
+                    Color.FromArgb(39, 174, 96),
+                    btnReservationManagement_Click
+                )
+            );
 
-            Panel panelQuick = new Panel();
-            panelQuick.BackColor = Color.White;
-            panelQuick.BorderStyle = BorderStyle.FixedSingle;
-            panelQuick.Location = new Point(830, 410);
-            panelQuick.Size = new Size(495, 210);
-            panelContent.Controls.Add(panelQuick);
+            dashboardCards.Controls.Add(
+                CreateStatCard(
+                    "Boarded",
+                    boardedPassengers.ToString(),
+                    "Click to view boarded passengers",
+                    Color.FromArgb(26, 188, 156),
+                    btnReservationManagement_Click
+                )
+            );
 
-            Label lblQuickTitle = new Label();
-            lblQuickTitle.Text = "Quick Actions";
-            lblQuickTitle.Font = new Font("Segoe UI", 16F, FontStyle.Bold);
-            lblQuickTitle.ForeColor = Color.FromArgb(32, 45, 64);
-            lblQuickTitle.AutoSize = true;
-            lblQuickTitle.Location = new Point(20, 18);
-            panelQuick.Controls.Add(lblQuickTitle);
+            dashboardCards.Controls.Add(
+                CreateStatCard(
+                    "Cancelled",
+                    cancelledBookings.ToString(),
+                    "Click to view cancelled bookings",
+                    Color.FromArgb(231, 76, 60),
+                    btnReservationManagement_Click
+                )
+            );
 
-            Button btnQuickRoute = CreateQuickButton("Manage Routes", new Point(25, 65));
-            btnQuickRoute.Click += btnRouteManagement_Click;
-            panelQuick.Controls.Add(btnQuickRoute);
-
-            Button btnQuickSchedule = CreateQuickButton("Manage Schedules", new Point(250, 65));
-            btnQuickSchedule.Click += btnScheduleManagement_Click;
-            panelQuick.Controls.Add(btnQuickSchedule);
-
-            Button btnQuickPayment = CreateQuickButton("Confirm Payments", new Point(25, 125));
-            btnQuickPayment.Click += btnReservationManagement_Click;
-            panelQuick.Controls.Add(btnQuickPayment);
-
-            Button btnQuickBoarding = CreateQuickButton("Check-in / Boarding", new Point(250, 125));
-            btnQuickBoarding.Click += btnReservationManagement_Click;
-            panelQuick.Controls.Add(btnQuickBoarding);
+            dashboardCards.Controls.Add(
+                CreateStatCard(
+                    "Revenue",
+                    "₱" + totalRevenue.ToString("N2"),
+                    "Click to open reports",
+                    Color.FromArgb(44, 62, 80),
+                    btnReports_Click
+                )
+            );
         }
 
-        private Panel CreateStatCard(string title, string value, string description, Point location, Color accentColor)
+        private Panel CreateStatCard(string title, string value, string description, Color accentColor, EventHandler clickAction)
         {
             Panel card = new Panel();
-            card.Size = new Size(235, 125);
-            card.Location = location;
+            card.Size = new Size(250, 135);
+            card.Margin = new Padding(0, 0, 25, 25);
             card.BackColor = Color.White;
             card.BorderStyle = BorderStyle.FixedSingle;
+            card.Cursor = Cursors.Hand;
 
             Panel colorBar = new Panel();
             colorBar.BackColor = accentColor;
@@ -475,10 +490,11 @@ namespace sr
 
             Label lblValue = new Label();
             lblValue.Text = value;
-            lblValue.Font = new Font("Segoe UI", 20F, FontStyle.Bold);
+            lblValue.Font = new Font("Segoe UI", 21F, FontStyle.Bold);
             lblValue.ForeColor = accentColor;
             lblValue.AutoSize = true;
-            lblValue.Location = new Point(25, 15);
+            lblValue.Location = new Point(28, 18);
+            lblValue.Cursor = Cursors.Hand;
             card.Controls.Add(lblValue);
 
             Label lblTitle = new Label();
@@ -486,7 +502,8 @@ namespace sr
             lblTitle.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
             lblTitle.ForeColor = Color.FromArgb(32, 45, 64);
             lblTitle.AutoSize = true;
-            lblTitle.Location = new Point(28, 68);
+            lblTitle.Location = new Point(30, 73);
+            lblTitle.Cursor = Cursors.Hand;
             card.Controls.Add(lblTitle);
 
             Label lblDesc = new Label();
@@ -494,36 +511,27 @@ namespace sr
             lblDesc.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
             lblDesc.ForeColor = Color.Gray;
             lblDesc.AutoSize = true;
-            lblDesc.Location = new Point(30, 95);
+            lblDesc.Location = new Point(32, 101);
+            lblDesc.Cursor = Cursors.Hand;
             card.Controls.Add(lblDesc);
 
+            card.Click += clickAction;
+            lblValue.Click += clickAction;
+            lblTitle.Click += clickAction;
+            lblDesc.Click += clickAction;
+            colorBar.Click += clickAction;
+
+            card.MouseEnter += (s, e) =>
+            {
+                card.BackColor = Color.FromArgb(248, 250, 252);
+            };
+
+            card.MouseLeave += (s, e) =>
+            {
+                card.BackColor = Color.White;
+            };
+
             return card;
-        }
-
-        private Button CreateQuickButton(string text, Point location)
-        {
-            Button btn = new Button();
-            btn.Text = text;
-            btn.Size = new Size(190, 42);
-            btn.Location = location;
-            btn.BackColor = Color.FromArgb(44, 62, 85);
-            btn.ForeColor = Color.White;
-            btn.FlatStyle = FlatStyle.Flat;
-            btn.FlatAppearance.BorderSize = 0;
-            btn.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            btn.Cursor = Cursors.Hand;
-
-            btn.MouseEnter += (s, e) =>
-            {
-                btn.BackColor = Color.FromArgb(52, 152, 219);
-            };
-
-            btn.MouseLeave += (s, e) =>
-            {
-                btn.BackColor = Color.FromArgb(44, 62, 85);
-            };
-
-            return btn;
         }
 
         private async void btnDashboard_Click(object sender, EventArgs e)
@@ -551,13 +559,11 @@ namespace sr
             LoadFormInPanel(new ReservationManagementForm(), "Reservation Management");
         }
 
-        // Hidden backup only. Payment confirmation is now handled inside Reservation Management.
         private void btnPaymentConfirmation_Click(object sender, EventArgs e)
         {
             LoadFormInPanel(new ReservationManagementForm(), "Reservation Management");
         }
 
-        // Hidden backup only. Check-in and boarding are now handled inside Reservation Management.
         private void btnCheckInBoarding_Click(object sender, EventArgs e)
         {
             LoadFormInPanel(new ReservationManagementForm(), "Reservation Management");
